@@ -9,7 +9,7 @@ var lock_sync_unlocks = true
 #Oh my god I hate this so much but it somehow works in testing dpajwojiosdfnikvkvknovnkonkoiopsja
 var mh_file_path = "user://logs/mhlogs" + Time.get_time_string_from_unix_time(int(Time.get_unix_time_from_system()-(Time.get_ticks_msec()/1000))).replace(":", ".") + ".log"
 var net_file_path = "user://logs/netlogs" + Time.get_time_string_from_unix_time(int(Time.get_unix_time_from_system()-(Time.get_ticks_msec()/1000))).replace(":", ".") + ".log"
-var logger = preload("res://MultiHustle/logger.gd")
+var logger = load("res://MultiHustle/logger.gd")
 
 # Util Functions
 
@@ -19,6 +19,9 @@ Dead players could get desynced and nobody would be the wiser besides the dead p
 If someone comes along who wants to fix this and make it properly ignore/remove/make them spectators, go ahead.
 But I'm fairly confident that this should cover for now.
 """
+
+func log_to_file(msg, net = false):
+	self.log(msg, net)
 
 func log(msg, net = false):
 	if net:
@@ -52,7 +55,7 @@ func ensure_script_override(object):
 	#for property in properties.keys():
 	#	object.set(property, properties[property])
 
-func pid_to_username(player_id):
+func pid_to_usernamepid_to_username(player_id):
 	if !is_instance_valid(game):
 		return ""
 	if SteamLobby.SPECTATING or !network_ids.has(player_id):
@@ -180,3 +183,150 @@ remote func player_disconnected(id):
 		unregister_player(id)
 	if not steam:
 		end_game()
+
+# Teams
+
+remotesync func on_team_change(team:int, username:String, player:int):
+	var team_name
+	var in_team = true
+	match team:
+		1:
+			team_name = "Red"
+		2:
+			team_name = "Blue"
+		3:
+			team_name = "Yellow"
+		4:
+			team_name = "Green"
+		_:
+			team_name = "None"
+			in_team = false
+	
+	print(username+"'s team changed to "+str(team_name))
+	
+	for team_key in teams:
+		var team_dict = teams[team_key]
+		if team_dict.has(player):
+			team_living[team_key] -= 1
+			team_dict.erase(player)
+	
+	if not(in_team):
+		return
+	
+
+	team_living[team] += 1
+	teams[team][player] = null
+	 
+
+# TODO: Move to game.gd
+# Please do Dictionary<int, Dictionary<int, BaseChar>>
+var teams: Dictionary = { 
+	1: {},
+	2: {},
+	3: {},
+	4: {},
+	0: {}
+}
+
+func print_team_counts():
+	pass
+	#print("Team Player Counts")
+	#print("Red team: " + str(teams[1].size()))
+	#print("Blue team: " + str(teams[1].size()))
+	#print("Yellow team: " + str(teams[1].size()))
+	#print("Green team: " + str(teams[1].size()))
+	
+	#logger.mh_log("[" + str(float(Time.get_ticks_msec())/1000.0) + "] Team Player Counts", mh_file_path)
+	#logger.mh_log("[" + str(float(Time.get_ticks_msec())/1000.0) + "] Red team: " + str(teams[1].size()), mh_file_path)
+	#logger.mh_log("[" + str(float(Time.get_ticks_msec())/1000.0) + "] Blue team: " + str(teams[2].size()), mh_file_path)
+	#logger.mh_log("[" + str(float(Time.get_ticks_msec())/1000.0) + "] Yellow team: " + str(teams[3].size()), mh_file_path)
+	#logger.mh_log("[" + str(float(Time.get_ticks_msec())/1000.0) + "] Green team: " + str(teams[4].size()), mh_file_path)
+
+func is_on_team(character, id:int):
+	return teams[id].values().contains(character)
+
+func get_team(character_id:int):
+	for team in teams:
+		if teams[team].has(character_id):
+			return team
+	
+	return 0 # if the character is not in a team (FFA)
+
+func get_color(id:int):
+	print("Getting color for team "+str(id))
+	match id:
+		1:
+			return "ff333d" # Red
+		2:
+			return "1d8df5" # Blue
+		3:
+			return "fcc603" # Yellow
+		4:
+			return "2ac91e" # Green
+	
+	return "ffffff" # White / None
+
+func create_team_button(text:String, name:String, team:int, container:Node):
+	var team_button = load("res://MultiHustle/Teams/TeamButton.tscn").instance()
+	container.add_child(team_button)
+	team_button.text = text
+	team_button.name = name
+	team_button.team_id = team
+	return team_button
+
+signal mh_chat_message_received(id, message, username)
+remotesync func send_mh_chat_message(player_id, message, username):
+	print("debug chat -- message:"+message+" -- from: "+username)
+	emit_signal("mh_chat_message_received", player_id, message, username)
+	
+
+# TODO: Make an actual system that isnt this
+var temp_hitbox_teams = { }
+
+func get_living_players_on_team(team:int):
+	if (teams == null):
+		print("null teams")
+	if (teams[team] == null):
+		print("null team")
+	var living = teams[team].size()
+	print(str(team)+" "+living)
+	for player in teams[team]:
+		living -= int(player.game_over)
+	return living
+
+remotesync func set_display_name(name:String, char_id:int):
+	game.player_names_rich[char_id] = "[center][color=#"+get_color(get_team(char_id))+"]"+name+"[/color][/center]"
+	game.player_names[char_id] = name
+	
+	name_init_count += 1
+	if name_init_count > game.players.size():
+		name_initialized = true
+		
+		main.uiselectors.reinit(main)
+		main.hud_layer.reinit(main.hud_layer.p1index, main.hud_layer.p2index)
+	else:
+		name_initialized = false
+
+remotesync func set_ghost_display_name(name:String, char_id:int):
+	var label:RichTextLabel = game.ghost_game.players[char_id].display_name
+	label.bbcode_text = "[center][color=#99"+get_color(get_team(char_id))+"]"+name+"[/color][/center]"
+	
+var team_living:Dictionary = {
+	1:0,
+	2:0,
+	3:0,
+	4:0,
+	0:0
+}
+
+
+var name_init_count:int = 0
+var name_initialized:bool = false
+
+var main
+
+func get_contains_string(option_button:OptionButton, string:String):
+	for i in range(0, option_button.get_item_count()):
+		if string in option_button.get_item_text(i):
+			return true 
+	return false

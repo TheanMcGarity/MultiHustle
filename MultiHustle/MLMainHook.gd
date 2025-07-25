@@ -2,7 +2,7 @@ extends "res://modloader/MLMainHook.gd"
 
 var hasIncompat = false
 
-const testedVersion = "1.9.19-steam"
+const testedVersion = "1.9.20-steam"
 
 const incompat_list = [
 	"platform_library"

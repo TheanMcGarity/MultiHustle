@@ -1,5 +1,14 @@
 extends "res://mechanics/Hitbox.gd"
 
+export (int) var team = 0
+
+
+func to_data():
+	Network.log("to_data -> team="+str(team))
+	var data = HitboxData.new(self)
+	Network.temp_hitbox_teams[data] = team
+	return data
+
 func hit(obj):
 	if not obj.get("opponent") == null:
 		var opponentTemp = obj.opponent

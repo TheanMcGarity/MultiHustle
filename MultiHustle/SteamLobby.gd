@@ -10,20 +10,20 @@ signal start_game()
 
 
 func _setup_game_vs(steam_id):
-	Network.log("Normal game setup got called for some reason")
+	Network.log_to_file("Normal game setup got called for some reason")
 	host_game_vs_all()
 
 func host_game_vs_all():
-	Network.log("host_game_vs_all called")
+	Network.log_to_file("host_game_vs_all called")
 	if SteamHustle.STEAM_ID != LOBBY_OWNER:
-		Network.log("Only host can setup")
+		Network.log_to_file("Only host can setup")
 		return
-	Network.log("registering players")
+	Network.log_to_file("registering players")
 	REMATCHING_ID = 0
 	OPPONENT_IDS.clear()
 	OPPONENT_IDS[1] = SteamHustle.STEAM_ID
 	var idx = 1
-	Network.log("Lobby members: " + str(LOBBY_MEMBERS))
+	Network.log_to_file("Lobby members: " + str(LOBBY_MEMBERS))
 	for member in LOBBY_MEMBERS:
 		#Exclude ourselves when counting lobby members
 		if member.steam_id != SteamHustle.STEAM_ID:
@@ -43,7 +43,7 @@ func host_game_vs_all():
 	multihustle_start()
 
 func multihustle_start():
-	Network.log("multihustle_start called")
+	Network.log_to_file("multihustle_start called")
 	OPPONENT_ID = LOBBY_OWNER
 	var data = {
 		"multihustle_start":OPPONENT_IDS,
@@ -52,8 +52,8 @@ func multihustle_start():
 	send_sync(OPPONENT_IDS)
 
 func send_sync(OPPONENT_IDS):
-	Network.log("send_sync called")
-	Network.log("opponent ids: " + str(OPPONENT_IDS))
+	Network.log_to_file("send_sync called")
+	Network.log_to_file("opponent ids: " + str(OPPONENT_IDS))
 	OPPONENT_ID = LOBBY_OWNER
 	self.OPPONENT_IDS = OPPONENT_IDS
 	for steam_id in sync_confirms.keys():
@@ -72,7 +72,7 @@ func send_sync(OPPONENT_IDS):
 	_send_P2P_Packet(0, data)
 
 func sync_confirm(steam_id):
-	Network.log("sync_confirm called")
+	Network.log_to_file("sync_confirm called")
 	sync_confirms[steam_id] = true
 	if is_syncing:
 		for confirmation in sync_confirms.values():
@@ -83,8 +83,8 @@ func sync_confirm(steam_id):
 		_setup_game_vs_group(OPPONENT_IDS)
 
 func _setup_game_vs_group(OPPONENT_IDS):
-	Network.log("_setup_game_vs_group called")
-	Network.log("opponent ids: " + str(OPPONENT_IDS))
+	Network.log_to_file("_setup_game_vs_group called")
+	Network.log_to_file("opponent ids: " + str(OPPONENT_IDS))
 	SETTINGS_LOCKED = true
 	self.OPPONENT_IDS = OPPONENT_IDS
 	Network.char_loaded.clear()
@@ -97,7 +97,7 @@ func _setup_game_vs_group(OPPONENT_IDS):
 			Network.player_id = index
 			Steam.setLobbyMemberData(SteamLobby.LOBBY_ID, "player_id", str(index))
 			break
-	Network.log("made it to character select")
+	Network.log_to_file("made it to character select")
 	Network.network_ids = OPPONENT_IDS
 	if SteamHustle.STEAM_ID == LOBBY_OWNER:
 		rpc_("open_chara_select")
@@ -149,12 +149,12 @@ func _read_P2P_Packet():
 	if PACKET_SIZE > 0:
 		var PACKET:Dictionary = Steam.readP2PPacket(PACKET_SIZE, 0)
 		if PACKET.empty() or PACKET == null:
-			Network.log("WARNING: read an empty packet with non-zero size!")
+			Network.log_to_file("WARNING: read an empty packet with non-zero size!")
 		var PACKET_SENDER:int = PACKET["steam_id_remote"]
 		p2p_packet_sender = PACKET_SENDER
 		var PACKET_CODE:PoolByteArray = PACKET["data"]
 		var readable:Dictionary = bytes2var(PACKET_CODE)
-		Network.log("P2P packet recieved! Sender: " + str(p2p_packet_sender) + " Data: " + str(readable), true)
+		Network.log_to_file("P2P packet recieved! Sender: " + str(p2p_packet_sender) + " Data: " + str(readable), true)
 		if readable.has("rpc_data"):
 			_receive_rpc(readable)
 		if readable.has("challenge_from"):
@@ -225,5 +225,5 @@ func _read_P2P_Packet():
 		_read_P2P_Packet_custom(readable)
 
 func _send_P2P_Packet(target:int, packet_data:Dictionary)->void :
-	Network.log("Sending P2P packet! Data: " + str(packet_data), true)
+	Network.log_to_file("Sending P2P packet! Data: " + str(packet_data), true)
 	._send_P2P_Packet(target, packet_data)

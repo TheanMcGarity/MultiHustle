@@ -1,30 +1,32 @@
 extends "res://game.gd"
 
-var player_datas = {}
+class_name MHGame
 
-var player_turns = {}
+var player_datas:Dictionary = {}
 
-var players = {}
+var player_turns:Dictionary = {}
 
-var player_usernames = {}
+var players:Dictionary = {}
 
-var player_supers = {}
+var player_usernames:Dictionary = {}
 
-var ghost_player_actionables = {}
+var player_supers:Dictionary = {}
 
-var player_ghost_ready_tick = {}
+var ghost_player_actionables:Dictionary = {}
+
+var player_ghost_ready_tick:Dictionary = {}
 
 var game_started_real:bool = false
 
 var multiHustle_CharManager
 
-var turns_taken = {}
+var turns_taken:Dictionary = {}
 
-var needs_refresh = true
+var needs_refresh:bool = true
 
-var current_opponent_indicies = {}
+var current_opponent_indicies:Dictionary = {}
 
-var player_colors = {}
+var player_colors:Dictionary = {}
 
 var color_rng:BetterRng = BetterRng.new()
 
@@ -34,7 +36,10 @@ var throws_consumed:Dictionary = {}
 
 var players_hittable_dic:Dictionary = {}
 
-var network_simulate_readies = {}
+var network_simulate_readies:Dictionary = {}
+
+var player_names:Dictionary = {}
+var player_names_rich:Dictionary = {}
 
 func copy_to(game):
 	set_vanilla_game_started(true)
@@ -157,6 +162,17 @@ func MultiHustle_get_color_by_index(index):
 func start_game(singleplayer:bool, match_data:Dictionary):
 	set_vanilla_game_started(true)
 
+	
+	if match_data.has("teams"):
+		var team_dict = match_data["teams"]
+		var replay_teams = {1:{},2:{},3:{},4:{},0:{}}
+		for team_player in team_dict:
+			replay_teams[team_dict[team_player]][team_player] = null
+			pass
+		Network.teams = replay_teams
+	if match_data.has("display_names"):
+		player_names_rich = match_data["display_names"]
+
 	self.match_data = match_data
 	color_rng.seed = match_data.seed
 
@@ -219,6 +235,9 @@ func start_game(singleplayer:bool, match_data:Dictionary):
 		$Players.add_child(player)
 		player.set_color(MultiHustle_get_color_by_index(index))
 		player.init()
+	
+	if not is_ghost:
+		Network.rpc_("set_display_name", [Steam.getPersonaName(), Network.player_id])
 
 	if match_data.has("selected_styles"):
 		for index in players.keys():
@@ -331,6 +350,9 @@ func start_game(singleplayer:bool, match_data:Dictionary):
 			var player = players[index]
 			player.gain_super_meter(meter_amount)
 
+	
+	
+
 func update_data():
 	set_vanilla_game_started(true)
 
@@ -396,11 +418,14 @@ func tick():
 			fx.tick()
 	self.current_tick += 1
 
-	for player in players.values():
+	for player_key in range(1, players.size()):
+		var player:Fighter = players[player_key]
+
 		player.current_tick = self.current_tick
-
-
+		
 		player.lowest_tick = - 1
+
+	
 	var playerPorts = resolve_port_priority()
 
 	for player in playerPorts:
@@ -465,6 +490,9 @@ func tick():
 		end_game()
 	for player in players.values():
 		if player.hp <= 0:
+			if not(player.game_over):
+				Network.team_living[player.team] -= 1
+			
 			player.game_over = true
 		else:
 			player.game_over = false
@@ -523,13 +551,35 @@ func lower_health(_1, _2):
 		return 0
 	return 1 if p1_hp < p2_hp else 2
 
+func calc_team_is_living(var team:int):
+	var team_alive = Network.team_living[team]
+	
+	return team_alive < 1
+
+func calc_team_living_count(var team:int):
+	var team_alive = Network.team_living[team]
+
+	
+	return team_alive
+
 func should_game_end():
 	set_vanilla_game_started(true)
-
-	var liveCount = len(players)
-	for player in players.values():
-		liveCount -= int(player.game_over)
-	return (self.current_tick > self.time or liveCount <= 1)
+	
+	var alive_teams = 4
+	alive_teams -= int(calc_team_is_living(1))
+	alive_teams -= int(calc_team_is_living(2))
+	alive_teams -= int(calc_team_is_living(3))
+	alive_teams -= int(calc_team_is_living(4))
+	
+	
+	
+	if (calc_team_is_living(0)):
+		var liveCount = len(players)
+		for player in players.values():
+			liveCount -= int(player.game_over)
+		return (self.current_tick > self.time or liveCount <= 1)
+	
+	return alive_teams <= 1
 
 func get_all_pairs(list):
 	var idx = 0

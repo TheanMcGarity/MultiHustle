@@ -4,6 +4,7 @@ var player_ghost_actions = {}
 var player_ghost_datas = {}
 var player_ghost_extras = {}
 
+var uiselectors
 var multiHustle_CharManager_res = preload("res://MultiHustle/CharManager.gd")
 var multiHustle_CharManager
 var multiHustle_UISelectors = preload("res://MultiHustle/ui/HUD/UISelectors.tscn")
@@ -16,6 +17,7 @@ func setup_game_deferred(singleplayer, data):
 	Network.log("Setup_game_deferred called")
 	Network.log("Starting game with data: " + str(data))
 	game = preload("res://Game.tscn").instance()
+	
 	_Global.ensure_script_override(game)
 	#game.set_script(load("res://game.gd"))
 
@@ -28,6 +30,7 @@ func setup_game_deferred(singleplayer, data):
 	game.connect("playback_requested", self, "_on_playback_requested")
 	game.connect("zoom_changed", self, "_on_zoom_changed")
 
+	Network.log("game.connect")
 	Network.game = game
 
 	if !Network.sync_unlocks.keys().has(1):
@@ -67,9 +70,14 @@ func setup_game_deferred(singleplayer, data):
 			ui_layer.set_turn_time(data.turn_time, (data.has("chess_timer") and data.chess_timer))
 		else :
 			ui_layer.start_timers()
-	var uiselectors = MultiHustle_AddData()
+	print("1")
+	uiselectors = MultiHustle_AddData()
+	print("2")
 	ui_layer.init(self)
+	print("3")
 	hud_layer.init(game)
+	print("4")
+	Network.main = self
 	#Dumb patchwork fix so that the ui accurately shows who's selected when in multiplayer.
 	for id in uiselectors.selects.keys():
 		var charSelect = uiselectors.selects[id][0]
@@ -151,18 +159,20 @@ func _start_ghost_internal(isRefresh = true):
 
 	if !isRefresh:
 		ghost_game = preload("res://Game.tscn").instance()
+		
 		_Global.ensure_script_override(ghost_game)
 		#ghost_game.set_script(load("res://game.gd"))
 		ghost_game.is_ghost = true
 		$"%GhostViewport".add_child(ghost_game)
-
+		
 		ghost_game.multiHustle_CharManager = multiHustle_CharManager
 		multiHustle_CharManager.Create_GhostActions()
-
+		
 		ghost_game.start_game(true, match_data)
 		ghost_game.connect("ghost_finished", self, "ghost_finished")
 		ghost_game.connect("make_afterimage", self, "make_afterimage", [], CONNECT_DEFERRED)
 		ghost_game.connect("ghost_my_turn", self, "ghost_my_turn", [], CONNECT_DEFERRED)
+		
 	ghost_game.ghost_speed = $"%GhostSpeed".get_speed()
 	ghost_game.ghost_freeze = $"%FreezeOnMyTurn".pressed
 	game.call_deferred("copy_to", ghost_game)
@@ -229,6 +239,7 @@ func _on_loaded_replay(match_data):
 	if !_Global.has_char_loader():
 		._on_loaded_replay(match_data)
 		return
+		
 	load_replay_chars(match_data)
 	match_data["replay"] = true
 	_on_match_ready(match_data)

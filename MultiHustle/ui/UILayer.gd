@@ -42,10 +42,10 @@ func init(m):
 		add_child(spacebar_handler)
 
 func sync_timer(player_id):
-	Network.log("Syncing time for player id " + str(player_id))
+	Network.log_to_file("Syncing time for player id " + str(player_id))
 	if Network.multiplayer_active:
 		if player_id == Network.player_id:
-			Network.log("syncing timer")
+			Network.log_to_file("syncing timer")
 			var timer = turn_timers[player_id]
 			Network.sync_timer(player_id, timer.time_left)
 
@@ -92,7 +92,7 @@ func end_turn_for(player_id):
 		sync_timer(player_id)
 
 func _on_turn_timer_timeout(player_id):
-	Network.log("Player " + str(player_id) + " timed out")
+	Network.log_to_file("Player " + str(player_id) + " timed out")
 	if player_id == Network.player_id:
 		if GetRealID(1) == Network.player_id:
 			$"%P1ActionButtons".timeout()

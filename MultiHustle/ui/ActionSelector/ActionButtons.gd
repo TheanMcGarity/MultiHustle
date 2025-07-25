@@ -7,7 +7,7 @@ var id = null
 # Hooked for debugging purposes
 func init(ngame, pid):
 	id = pid
-	Network.log("Init called for action buttons! ID: " + str(pid))
+	Network.log_to_file("Init called for action buttons! ID: " + str(pid))
 	reset()
 	game = ngame
 	fighter = game.get_player(pid)
@@ -47,11 +47,11 @@ func init(ngame, pid):
 	$"%TurnButtons".add_child(continue_button)
 	$"%TurnButtons".move_child(continue_button, 1)
 
-	Network.log("Init finished for action buttons! ID: " + str(pid))
+	Network.log_to_file("Init finished for action buttons! ID: " + str(pid))
 
 func re_init(pid):
 	id = pid
-	Network.log("Re-Init called for action buttons! ID: " + str(pid))
+	Network.log_to_file("Re-Init called for action buttons! ID: " + str(pid))
 
 	reset()
 	fighter = game.get_player(pid)
@@ -90,7 +90,7 @@ func re_init(pid):
 
 	activate()
 
-	Network.log("Re-Init finished for action buttons! ID: " + str(id))
+	Network.log_to_file("Re-Init finished for action buttons! ID: " + str(id))
 
 func reset():
 	visible = false
@@ -128,7 +128,7 @@ func reset():
 	buttons = []
 
 func _on_submit_pressed():
-	Network.log("Submit pressed for player " + str(id) + " | Current Button: " + str(current_button))
+	Network.log_to_file("Submit pressed for player " + str(id) + " | Current Button: " + str(current_button))
 	lock_in_pressed = true
 	yield (get_tree(), "idle_frame")
 	yield (get_tree(), "idle_frame")
@@ -148,7 +148,7 @@ func _on_submit_pressed():
 	locked_in = true
 
 func on_action_submitted(action, data = null, extra = null):
-	Network.log("Submitting action for player " + str(id) + ", action is " + str(action) + " | " + str(data))
+	Network.log_to_file("Submitting action for player " + str(id) + ", action is " + str(action) + " | " + str(data))
 	active = false
 	extra = get_extra() if extra == null else extra
 	$"%SelectButton".disabled = true
@@ -168,7 +168,7 @@ func get_extra()->Dictionary:
 		extra.merge(.get_extra())
 		return extra
 	else:
-		Network.log("MH Extra: game was somehow null")
+		Network.log_to_file("MH Extra: game was somehow null")
 		return .get_extra()
 
 func disable_select():
@@ -184,10 +184,10 @@ func update_select_button():
 
 func activate(refresh = true):
 
-	Network.log("Action buttons should be showing: " + str(visible) + " | " + str(active))
+	Network.log_to_file("Action buttons should be showing: " + str(visible) + " | " + str(active))
 
 	if visible and refresh:
-		Network.log("Returning at point A")
+		Network.log_to_file("Returning at point A")
 		return
 
 	active = true
@@ -265,7 +265,7 @@ func activate(refresh = true):
 	fighter.any_available_actions = any_available_actions
 	if user_facing and $"%AutoButton".pressed:
 		if not any_available_actions:
-			Network.log("no available actions!")
+			Network.log_to_file("no available actions!")
 			on_action_submitted("Continue", null)
 			current_action = "Continue"
 
@@ -274,7 +274,7 @@ func activate(refresh = true):
 
 	$"%ReverseButton".show()
 	if not refresh:
-		Network.log("Returning at point B")
+		Network.log_to_file("Returning at point B")
 		return
 	fighter.update_property_list()
 	button_pressed = false

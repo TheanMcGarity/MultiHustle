@@ -4,7 +4,7 @@ extends "res://ui/SteamLobby/SteamLobby.gd"
 
 func init():
 	if SteamLobby.REMATCHING_ID != 0:
-		Network.log("MultiHustle doesn't support rematch button yet")
+		Network.log_to_file("MultiHustle doesn't support rematch button yet")
 		SteamLobby.REMATCHING_ID = 0
 	.init()
 	$"%MatchList".hide()
