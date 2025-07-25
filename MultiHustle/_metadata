@@ -1,15 +1,15 @@
 {
-  "author": "uGuardian",
+  "author": "uGuardian (Online by CTAG07), modified by PinkTarr",
   "client_side": false,
   "description": "Allows for more than 2 players",
-  "friendly_name": "MultiHustle",
+  "friendly_name": "MultiHustle [PINKTARR FORK]",
   "id": "12345",
   "link": "",
-  "name": "MultiHustle",
+  "name": "MultiHustleFork",
   "overwrites": false,
   "priority": -9999,
   "requires": [
     ""
   ],
-  "version": "0.6.3"
+  "version": "0.8.0"
 }

@@ -2,7 +2,10 @@ extends Node
 
 #class_name MultiHustle_UISelectors
 
-onready var selects = {1:[get_child(0), get_child(2)], 2:[get_child(1), get_child(3)]}
+onready var selects = { # [Char, Opp] nodes
+	1:[get_child(1).get_child(0),get_child(1).get_child(2)], # Left
+	2:[get_child(1).get_child(1), get_child(1).get_child(3)] # Right
+}
 onready var local_char_select = selects[1][0]
 var main
 
@@ -16,16 +19,46 @@ func Init(main):
 		oppSelect.parent = charSelect
 		charSelect.opponentSelect = oppSelect
 		if id == 1 && Network.multiplayer_active:
-			charSelect.Init(main, Network.player_id)
-			charSelect.hide()
+			# I don't like the number of things I'm doing here, a better way is probably most certainly possible.
+			charSelect.Init(main, id)
+			charSelect.SelectIndex(Network.player_id)
+			oppSelect.on_ParentChanged()
 			assigned_ids.append(Network.player_id)
+			charSelect.hide()
 		else:
-			var new_id = id
+			var new_id = 1
 			while assigned_ids.has(new_id):
 				new_id += 1
-			charSelect.Init(main, new_id)
+			# This too. I hate this.
+			charSelect.Init(main, id)
+			charSelect.SelectIndex(new_id)
+			oppSelect.on_ParentChanged()
 			assigned_ids.append(new_id)
 	# TODO - Make this more expandable
+	Network.log_to_file("Network Player ID: " + str(Network.player_id) + " | Assigned IDs: " + str(assigned_ids))
+	selects[1][0].DeactivateChar(assigned_ids[1])
+	selects[2][0].DeactivateChar(assigned_ids[0])
+
+func reinit(main):
+	self.main = main
+	var assigned_ids = []
+	for id in selects.keys():
+		var charSelect = selects[id][0]
+		var oppSelect = selects[id][1]
+
+		if id == 1 and Network.multiplayer_active:
+			charSelect.hide()
+
+		charSelect.parent = self
+		oppSelect.parent = charSelect
+		charSelect.opponentSelect = oppSelect
+		
+		# This too. I hate this.
+		charSelect.reinit(main, id)
+		oppSelect.reinit(main, id)
+	
+	# TODO - Make this more expandable
+	Network.log_to_file("Network Player ID: " + str(Network.player_id) + " | Assigned IDs: " + str(assigned_ids))
 	selects[1][0].DeactivateChar(assigned_ids[1])
 	selects[2][0].DeactivateChar(assigned_ids[0])
 

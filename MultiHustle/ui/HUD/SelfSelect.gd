@@ -14,27 +14,13 @@ func DeactivateChar(index:int):
 func _item_selected(index):
 	._item_selected(index)
 	var realIndex = index+1
-	if id == 1:
-		Network.multihustle_action_button_manager.set_active_buttons(realIndex, false)
-	else:
-		Network.multihustle_action_button_manager.set_active_buttons(realIndex, true)
+	GetActionButtons().re_init(realIndex)
 	InitUI(realIndex)
-	ReconnectButtons(realIndex)
 	parent.DeactivateOther(id, realIndex)
 	opponentSelect.on_ParentChanged()
 
 func InitUI(index:int):
-	var actionButtons = GetActionButtons()
 	InitHUD(index)
-
-func ReconnectButtons(realIndex):
-	# REVIEW - Why do I constantly disconnect and reconnect again?
-	# var actionButtons = GetActionButtons()
-	#actionButtons.disconnect("action_clicked", parent.main, "on_action_clicked")
-	#actionButtons.connect("action_clicked", parent.main, "on_action_clicked", [realIndex])
-	# TODO - Handle Opposite Buttons somehow
-	# actionButtons.opposite_buttons
-	pass
 
 func GetActionButtons():
 	match(id):

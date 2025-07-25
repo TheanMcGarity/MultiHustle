@@ -4,7 +4,7 @@ var main
 var id:int
 var activeCharIndex:int
 var parent
-
+var connected:bool
 # For some reason properties are broken
 #var activeChar:Fighter setget , get_activeChar
 func get_activeChar():
@@ -25,18 +25,30 @@ func Init(main, id:int):
 	for index in game.players.keys():
 		var player = game.players[index]
 		add_item(GetName(index))
+	if connected:
+		return
 	PreConnect()
 	self.connect("item_selected", self, "_item_selected")
+	connected = true
+
+func reinit(main, id:int):
+	self.main = main
+	self.id = id
+	var game = get_game()
+	for index in game.players.keys():
+		set_item_text(index-1,  GetName(index))
 
 func PreConnect():
 	pass
 
 func GetName(index:int):
 	var name:String
+	if not Network.game.player_names.has(index):
+		return "{NAME NOT FOUND}"
 	if Network.multiplayer_active:
-		name = Network.pid_to_username(index)
+		name = Network.game.player_names[index]
 	else:
-		name = get_game().match_data.user_data["p"+str(index)]
+		name = Network.game.player_names[index]
 	return name
 
 func DeactivateChar(index:int):

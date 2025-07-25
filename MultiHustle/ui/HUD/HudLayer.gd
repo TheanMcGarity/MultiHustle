@@ -81,10 +81,10 @@ func initp1(p1index):
 	p1_burst_meter.fighter = p1
 
 	if Network.multiplayer_active and not SteamLobby.SPECTATING and p1index == 1:
-		$"%P1Username".text = Network.pid_to_username(1)
+		$"%P1Username".text = Network.game.player_names[1]
 	elif game.match_data.has("user_data"):
 		if game.match_data.user_data.has("p"+str(p1index)):
-			$"%P1Username".text = game.match_data.user_data["p"+str(p1index)]
+			$"%P1Username".text = Network.game.player_names[p1index]
 	
 	$"%P1ShowStyle".set_pressed_no_signal(p1.is_style_active == true)
 
@@ -111,10 +111,10 @@ func initp2(p2index):
 	p2_burst_meter.fighter = p2
 
 	if Network.multiplayer_active and not SteamLobby.SPECTATING and p2index == 1:
-		$"%P2Username".text = Network.pid_to_username(1)
+		Network.game.player_names[p2index]
 	elif game.match_data.has("user_data"):
 		if game.match_data.user_data.has("p"+str(p2index)):
-			$"%P2Username".text = game.match_data.user_data["p"+str(p2index)]
+			$"%P2Username".text = Network.game.player_names[p2index]
 	
 	$"%P2ShowStyle".set_pressed_no_signal(p2.is_style_active == true)
 

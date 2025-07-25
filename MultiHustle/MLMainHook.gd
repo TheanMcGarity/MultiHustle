@@ -2,7 +2,7 @@ extends "res://modloader/MLMainHook.gd"
 
 var hasIncompat = false
 
-const testedVersion = "1.9.0-steam"
+const testedVersion = "1.9.20-steam"
 
 const incompat_list = [
 	"platform_library"
@@ -28,7 +28,7 @@ func MH_addWarningMessage():
 
 func MH_checkVersionCompatibility(list_container):
 	var top_label = Label.new()
-	top_label.text = "MultiHustle is currently built for game version:\n%s\n\n" % testedVersion
+	top_label.text = "MultiHustle is currently built for game version:\n%s\n(This is only a warning)\n\n" % testedVersion
 	list_container.add_child(top_label)
 	if testedVersion in Global.VERSION:
 		top_label.queue_free()

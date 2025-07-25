@@ -4,6 +4,7 @@ var player_ghost_actions = {}
 var player_ghost_datas = {}
 var player_ghost_extras = {}
 
+var uiselectors
 var multiHustle_CharManager_res = preload("res://MultiHustle/CharManager.gd")
 var multiHustle_CharManager
 var multiHustle_UISelectors = preload("res://MultiHustle/ui/HUD/UISelectors.tscn")
@@ -13,7 +14,10 @@ func _ready():
 	$"%P2ShowStyle".disconnect("toggled", self, "_on_show_style_toggled")
 
 func setup_game_deferred(singleplayer, data):
+	Network.log("Setup_game_deferred called")
+	Network.log("Starting game with data: " + str(data))
 	game = preload("res://Game.tscn").instance()
+	
 	_Global.ensure_script_override(game)
 	#game.set_script(load("res://game.gd"))
 
@@ -26,8 +30,14 @@ func setup_game_deferred(singleplayer, data):
 	game.connect("playback_requested", self, "_on_playback_requested")
 	game.connect("zoom_changed", self, "_on_zoom_changed")
 
+	Network.log("game.connect")
 	Network.game = game
 
+	if !Network.sync_unlocks.keys().has(1):
+		for key in data.selected_characters.keys():
+			Network.sync_unlocks[key] = false
+
+	# This fallback will be removed next major game update
 	var user_data
 	var has_data = true
 	if not data.has("user_data"):
@@ -38,6 +48,8 @@ func setup_game_deferred(singleplayer, data):
 		if Network.multiplayer_active:
 			for index in data.selected_characters.keys():
 				user_data["p"+str(index)] = Network.pid_to_username(index)
+				if user_data["p"+str(index)] == "":
+					user_data["p"+str(index)] = "p"+str(index)
 		else :
 			for index in data.selected_characters.keys():
 				# Removed the normal username use because... why?
@@ -51,15 +63,25 @@ func setup_game_deferred(singleplayer, data):
 				user_data["p"+str(index)] = name
 
 	if game.start_game(singleplayer, data) is bool:
+		Network.log("Something went wrong starting the game")
 		return
 	if data.has("turn_time"):
 		if not Network.undo or (data.has("chess_timer") and not data.chess_timer):
 			ui_layer.set_turn_time(data.turn_time, (data.has("chess_timer") and data.chess_timer))
 		else :
 			ui_layer.start_timers()
-	ui_layer.init(game)
+	print("1")
+	uiselectors = MultiHustle_AddData()
+	print("2")
+	ui_layer.init(self)
+	print("3")
 	hud_layer.init(game)
-	MultiHustle_AddData()
+	print("4")
+	Network.main = self
+	#Dumb patchwork fix so that the ui accurately shows who's selected when in multiplayer.
+	for id in uiselectors.selects.keys():
+		var charSelect = uiselectors.selects[id][0]
+		charSelect.InitUI(charSelect.get_activeChar().id)
 	var p1 = game.get_player(1)
 	var p2 = game.get_player(2)
 	p1.debug_label = $"%DebugLabelP1"
@@ -69,23 +91,22 @@ func setup_game_deferred(singleplayer, data):
 	p1_info_scene.set_fighter(p1)
 	p2_info_scene.set_fighter(p2)
 	if $"%P1InfoContainer".get_child(0) is PlayerInfo:
-
-		$"%P1InfoContainer".get_child(0).queue_free()
+		$"%P1InfoContainer".remove_child($"%P1InfoContainer".get_child(0))
 	if $"%P2InfoContainer".get_child(0) is PlayerInfo:
-
-		$"%P2InfoContainer".get_child(0).queue_free()
-	for child in $"%ActivePlayerInfoContainer".get_children():
-		child.queue_free()
-
-
+		$"%P2InfoContainer".remove_child($"%P2InfoContainer".get_child(0))
 	$"%P1InfoContainer".add_child(p1_info_scene)
 	$"%P1InfoContainer".move_child(p1_info_scene, 0)
 	$"%P2InfoContainer".add_child(p2_info_scene)
 	$"%P2InfoContainer".move_child(p2_info_scene, 0)
-	ui_layer.p1_info_scene = p1_info_scene
-	ui_layer.p2_info_scene = p2_info_scene
 
-func on_action_clicked(action, data, extra, player_id):
+func on_action_clicked(action, data, extra, id):
+	var player_id
+	if id == 1:
+		player_id = $"%P1ActionButtons".id
+	elif id == 2:
+		player_id = $"%P2ActionButtons".id
+	else:
+		player_id = 1
 	player_ghost_actions[player_id] = action
 	player_ghost_datas[player_id] = data
 	player_ghost_extras[player_id] = extra
@@ -138,18 +159,20 @@ func _start_ghost_internal(isRefresh = true):
 
 	if !isRefresh:
 		ghost_game = preload("res://Game.tscn").instance()
+		
 		_Global.ensure_script_override(ghost_game)
 		#ghost_game.set_script(load("res://game.gd"))
 		ghost_game.is_ghost = true
 		$"%GhostViewport".add_child(ghost_game)
-
+		
 		ghost_game.multiHustle_CharManager = multiHustle_CharManager
 		multiHustle_CharManager.Create_GhostActions()
-
+		
 		ghost_game.start_game(true, match_data)
 		ghost_game.connect("ghost_finished", self, "ghost_finished")
 		ghost_game.connect("make_afterimage", self, "make_afterimage", [], CONNECT_DEFERRED)
 		ghost_game.connect("ghost_my_turn", self, "ghost_my_turn", [], CONNECT_DEFERRED)
+		
 	ghost_game.ghost_speed = $"%GhostSpeed".get_speed()
 	ghost_game.ghost_freeze = $"%FreezeOnMyTurn".pressed
 	game.call_deferred("copy_to", ghost_game)
@@ -192,17 +215,8 @@ func MultiHustle_AddData():
 	var uiselectors = multiHustle_UISelectors.instance()
 	ui_layer.add_child(uiselectors)
 	ui_layer.multiHustle_UISelectors = uiselectors
-	var button_manager = _Global.multihustle_action_button_manager
-	button_manager.main = self
-	button_manager.owner = owner
-	#button_manager.action_buttons_left[1] = $"%P1ActionButtons"
-	#button_manager.action_buttons_right[2] = $"%P2ActionButtons"
-	button_manager.bottombar = $"%BottomBar"
-	var all_buttons = $"%ActionButtons"
-	button_manager.vbox_container_left = all_buttons.get_child(0)
-	button_manager.vbox_container_right = all_buttons.get_child(1)
-	button_manager.init_actionbuttons()
 	uiselectors.Init(self)
+	return uiselectors
 
 func fix_ghost_objects(ghost_game_):
 	var to_remove = []
@@ -225,6 +239,7 @@ func _on_loaded_replay(match_data):
 	if !_Global.has_char_loader():
 		._on_loaded_replay(match_data)
 		return
+		
 	load_replay_chars(match_data)
 	match_data["replay"] = true
 	_on_match_ready(match_data)

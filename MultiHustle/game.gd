@@ -1,30 +1,32 @@
 extends "res://game.gd"
 
-var player_datas = {}
+class_name MHGame
 
-var player_turns = {}
+var player_datas:Dictionary = {}
 
-var players = {}
+var player_turns:Dictionary = {}
 
-var player_usernames = {}
+var players:Dictionary = {}
 
-var player_supers = {}
+var player_usernames:Dictionary = {}
 
-var ghost_player_actionables = {}
+var player_supers:Dictionary = {}
 
-var player_ghost_ready_tick = {}
+var ghost_player_actionables:Dictionary = {}
+
+var player_ghost_ready_tick:Dictionary = {}
 
 var game_started_real:bool = false
 
 var multiHustle_CharManager
 
-var turns_taken
+var turns_taken:Dictionary = {}
 
-var needs_refresh = true
+var needs_refresh:bool = true
 
-var current_opponent_indicies = {}
+var current_opponent_indicies:Dictionary = {}
 
-var player_colors = {}
+var player_colors:Dictionary = {}
 
 var color_rng:BetterRng = BetterRng.new()
 
@@ -34,6 +36,10 @@ var throws_consumed:Dictionary = {}
 
 var players_hittable_dic:Dictionary = {}
 
+var network_simulate_readies:Dictionary = {}
+
+var player_names:Dictionary = {}
+var player_names_rich:Dictionary = {}
 
 func copy_to(game):
 	set_vanilla_game_started(true)
@@ -42,12 +48,6 @@ func copy_to(game):
 		return
 	game.player_colors = player_colors.duplicate(true)
 	game.current_opponent_indicies = current_opponent_indicies.duplicate(true)
-
-
-
-
-
-
 	for index in players.keys():
 		var player_old = players[index]
 		player_old.chara.copy_to(game.players[index].chara)
@@ -104,7 +104,6 @@ func copy_to(game):
 	game.camera.limit_left = self.camera.limit_left
 	game.camera.limit_right = self.camera.limit_right
 
-
 func _on_super_started(ticks, player):
 	set_vanilla_game_started(true)
 
@@ -142,9 +141,7 @@ func on_hitbox_refreshed(hitbox_name):
 
 func forfeit(id):
 	set_vanilla_game_started(true)
-
-	# TODO - Make this work with multiple players
-	.forfeit(id)
+	players[id].forfeit()
 
 func MultiHustle_get_color_by_index(index):
 	# TODO - Add more auto-colors
@@ -165,6 +162,17 @@ func MultiHustle_get_color_by_index(index):
 func start_game(singleplayer:bool, match_data:Dictionary):
 	set_vanilla_game_started(true)
 
+	
+	if match_data.has("teams"):
+		var team_dict = match_data["teams"]
+		var replay_teams = {1:{},2:{},3:{},4:{},0:{}}
+		for team_player in team_dict:
+			replay_teams[team_dict[team_player]][team_player] = null
+			pass
+		Network.teams = replay_teams
+	if match_data.has("display_names"):
+		player_names_rich = match_data["display_names"]
+
 	self.match_data = match_data
 	color_rng.seed = match_data.seed
 
@@ -175,7 +183,7 @@ func start_game(singleplayer:bool, match_data:Dictionary):
 	# Implement variable key loader
 	for index in match_data.selected_characters.keys():
 		if multiHustle_CharManager.InitCharacter(self, index, match_data.selected_characters[index]) == false:
-			print_debug("Failed to load character")
+			Network.log("Failed to load character")
 			return false
 
 	for player in players.values():
@@ -227,6 +235,9 @@ func start_game(singleplayer:bool, match_data:Dictionary):
 		$Players.add_child(player)
 		player.set_color(MultiHustle_get_color_by_index(index))
 		player.init()
+	
+	if not is_ghost:
+		Network.rpc_("set_display_name", [Steam.getPersonaName(), Network.player_id])
 
 	if match_data.has("selected_styles"):
 		for index in players.keys():
@@ -339,6 +350,9 @@ func start_game(singleplayer:bool, match_data:Dictionary):
 			var player = players[index]
 			player.gain_super_meter(meter_amount)
 
+	
+	
+
 func update_data():
 	set_vanilla_game_started(true)
 
@@ -353,11 +367,6 @@ func update_data():
 				p2_data = player.data
 
 func get_max_replay_tick():
-
-
-
-
-
 	max_replay_tick = 0
 	for id in ReplayManager.frame_ids():
 		for tick in ReplayManager.frames[id].keys():
@@ -409,11 +418,14 @@ func tick():
 			fx.tick()
 	self.current_tick += 1
 
-	for player in players.values():
+	for player_key in range(1, players.size()):
+		var player:Fighter = players[player_key]
+
 		player.current_tick = self.current_tick
-
-
+		
 		player.lowest_tick = - 1
+
+	
 	var playerPorts = resolve_port_priority()
 
 	for player in playerPorts:
@@ -478,7 +490,12 @@ func tick():
 		end_game()
 	for player in players.values():
 		if player.hp <= 0:
+			if not(player.game_over):
+				Network.team_living[player.team] -= 1
+			
 			player.game_over = true
+		else:
+			player.game_over = false
 
 func resolve_port_priority(id = false):
 	set_vanilla_game_started(true)
@@ -491,14 +508,13 @@ func resolve_port_priority(id = false):
 	var pairs = get_all_pairs(players.keys())
 	for p in self.priorities:
 		for pair in pairs:
-			var priority = 0
 			var index1 = pair[0]
 			var index2 = pair[1]
 			var p1 = players[index1]
 			var p2 = players[index2]
 			var p1_state = p1.current_state()
 			var p2_state = p2.current_state()
-			priority = p.call_func(p1_state, p2_state)
+			var priority = p.call_func(p1_state, p2_state)
 			match priority:
 				1:
 					if !playerAdded[index1]:
@@ -535,13 +551,35 @@ func lower_health(_1, _2):
 		return 0
 	return 1 if p1_hp < p2_hp else 2
 
+func calc_team_is_living(var team:int):
+	var team_alive = Network.team_living[team]
+	
+	return team_alive < 1
+
+func calc_team_living_count(var team:int):
+	var team_alive = Network.team_living[team]
+
+	
+	return team_alive
+
 func should_game_end():
 	set_vanilla_game_started(true)
-
-	var liveCount = len(players)
-	for player in players.values():
-		liveCount -= int((player.hp <= 0))
-	return (self.current_tick > self.time or liveCount <= 1)
+	
+	var alive_teams = 4
+	alive_teams -= int(calc_team_is_living(1))
+	alive_teams -= int(calc_team_is_living(2))
+	alive_teams -= int(calc_team_is_living(3))
+	alive_teams -= int(calc_team_is_living(4))
+	
+	
+	
+	if (calc_team_is_living(0)):
+		var liveCount = len(players)
+		for player in players.values():
+			liveCount -= int(player.game_over)
+		return (self.current_tick > self.time or liveCount <= 1)
+	
+	return alive_teams <= 1
 
 func get_all_pairs(list):
 	var idx = 0
@@ -934,7 +972,7 @@ func MH_wrapped_hit(hitbox, target):
 		result = hitbox.hit(target)
 		target.opponent = opponentTemp
 	else:
-		print_debug("MultiHustle: Couldn't set opponent for hitbox")
+		Network.log("Couldn't set opponent for hitbox")
 		result = hitbox.hit(target)
 	return result
 
@@ -997,6 +1035,11 @@ func process_tick():
 	if self.super_freeze_ticks > 0:
 		return
 
+	self.network_simulate_ready = true
+	for value in self.network_simulate_readies.values():
+		if !value:
+			self.network_simulate_ready = value
+
 	var can_tick = not Global.frame_advance or (self.advance_frame_input)
 	if can_tick:
 		self.advance_frame_input = false
@@ -1008,8 +1051,6 @@ func process_tick():
 	if ReplayManager.resimulating:
 		ReplayManager.playback = true
 		can_tick = true
-
-
 
 	if not ReplayManager.playback:
 		if not is_waiting_on_player():
@@ -1068,17 +1109,20 @@ func process_tick():
 					if self.network_sync_tick != self.current_tick:
 						Network.rpc_("end_turn_simulation", [self.current_tick, Network.player_id])
 						self.network_sync_tick = self.current_tick
+						for key in self.network_simulate_readies.keys():
+							if not self.players[key].game_over:
+								self.network_simulate_readies[key] = false
 						self.network_simulate_ready = false
 						Network.sync_unlock_turn()
 						Network.on_turn_started()
 
-	else :
+	else:
 		if ReplayManager.resimulating:
 			self.snapping_camera = true
 			call_deferred("resimulate")
 			yield (get_tree(), "idle_frame")
 			self.game_paused = false
-		else :
+		else:
 			if self.buffer_edit:
 				ReplayManager.playback = false
 				ReplayManager.cut_replay(self.current_tick)

@@ -13,29 +13,32 @@ func installExtension(childScriptPath:String):
 
 func _init(modLoader = ModLoader):
 	var meta_data = get_meta_data(modLoader, "MultiHustle")
-	print("Initializing MultiHustle version %s" % meta_data.version)
+	#print("Initializing MultiHustle version %s" % meta_data.version)
 
 	modLoader.installScriptExtension("res://MultiHustle/MLMainHook.gd")
 	modLoader.installScriptExtension("res://MultiHustle/main_fake.gd")
-	modLoader.installScriptExtension("res://MultiHustle/mechanics/Hitbox.gd")
 	modLoader.installScriptExtension("res://MultiHustle/characters/states/ThrowState.gd")
 	modLoader.installScriptExtension("res://MultiHustle/characters/swordandgun/states/LassoReel.gd")
 	modLoader.installScriptExtension("res://MultiHustle/ui/ActionSelector/ActionButtons.gd")
 	modLoader.installScriptExtension("res://MultiHustle/ui/CSS/CharacterSelect.gd")
 	modLoader.installScriptExtension("res://MultiHustle/ui/HUD/HudLayer.gd")
-	#modLoader.installScriptExtension("res://MultiHustle/ui/SteamLobby/LobbyUser.gd")
-	#modLoader.installScriptExtension("res://MultiHustle/ui/SteamLobby/SteamLobby.gd")
+	modLoader.installScriptExtension("res://MultiHustle/ui/SteamLobby/LobbyUser.gd")
+	modLoader.installScriptExtension("res://MultiHustle/ui/SteamLobby/SteamLobby.gd")
 	modLoader.installScriptExtension("res://MultiHustle/ui/UILayer.gd")
-	modLoader.installScriptExtension("res://MultiHustle/ui/Chat.gd")
+	modLoader.installScriptExtension("res://MultiHustle/ui/Chat/Chat.gd")
 	installExtension("res://MultiHustle/Network.gd")
 	ensure_script_override(Network)
 	modLoader.installScriptExtension("res://MultiHustle/game.gd")
 	modLoader.installScriptExtension("res://MultiHustle/ReplayManager.gd")
 	ensure_script_override(ReplayManager)
 	modLoader.installScriptExtension("res://MultiHustle/main.gd")
-	#modLoader.installScriptExtension("res://MultiHustle/SteamLobby.gd")
-
+	modLoader.installScriptExtension("res://MultiHustle/SteamLobby.gd")
+	modLoader.installScriptExtension("res://MultiHustle/characters/BaseChar.gd")
+	modLoader.installScriptExtension("res://MultiHustle/hitbox/Hitbox.gd")
+	
 	#modLoader.saveScene(preload("res://MultiHustle/ui/SteamLobby/LobbyMatch.tscn").instance(), "res://ui/SteamLobby/LobbyMatch.tscn")
+
+	Network._whitelist_rpc_method("init_team_player")
 
 	print("Initialized")
 
