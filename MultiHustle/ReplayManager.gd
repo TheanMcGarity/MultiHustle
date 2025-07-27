@@ -27,9 +27,9 @@ func undo(cut = true):
 			if frame > last_frame:
 				last_frame = frame
 				last_id = id
-	if cut:
-		for id in frame_ids():
-			frames[id].erase(last_frame)
+		if cut:
+			for id in frame_ids():
+				frames[id].erase(last_frame)
 	resimulating = true
 	playback = true
 	resim_tick = (last_frame - 2) if cut else - 1

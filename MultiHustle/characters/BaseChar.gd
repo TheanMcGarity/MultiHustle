@@ -10,6 +10,8 @@ var team:int = 0
 
 var display_name:RichTextLabel
 
+var sent_name:bool = false
+
 #var set_name:bool = false
 
 func init_team(player):
@@ -52,7 +54,6 @@ func init(pos = null):
 func get_inner_nodes_with_script(current_array, parent, script_type):
 	for child in parent.get_children():
 		if child.get_script() != null and child is script_type:
-			print("append")
 			current_array.append(child)
 		get_inner_nodes_with_script(current_array, child, script_type)
 func get_nodes_with_script(root: Node, script_type: Script):
@@ -127,6 +128,14 @@ func spawn_object(projectile: PackedScene, pos_x: int, pos_y: int, relative = tr
 
 func tick():
 	.tick()
+	
+	# Basically
+	# !sent_name && !is_ghost && id == Network.player_id
+	if not sent_name and id == Network.player_id:
+		Network.rpc_("set_display_name", [Steam.getPersonaName(), Network.player_id])
+		sent_name = true
+
+
 	var name = Network.game.player_names_rich[id]
 		
 	if name is String and "center" in name:
