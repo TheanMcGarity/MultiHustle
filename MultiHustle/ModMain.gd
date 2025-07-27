@@ -16,7 +16,7 @@ func _init(modLoader = ModLoader):
 	#print("Initializing MultiHustle version %s" % meta_data.version)
 
 	modLoader.installScriptExtension("res://MultiHustle/MLMainHook.gd")
-	modLoader.installScriptExtension("res://MultiHustle/main_fake.gd")
+	modLoader.installScriptExtension("res://MultiHustle/MainFake.gd")
 	modLoader.installScriptExtension("res://MultiHustle/characters/states/ThrowState.gd")
 	modLoader.installScriptExtension("res://MultiHustle/characters/swordandgun/states/LassoReel.gd")
 	modLoader.installScriptExtension("res://MultiHustle/ui/ActionSelector/ActionButtons.gd")
@@ -28,10 +28,10 @@ func _init(modLoader = ModLoader):
 	modLoader.installScriptExtension("res://MultiHustle/ui/Chat/Chat.gd")
 	installExtension("res://MultiHustle/Network.gd")
 	ensure_script_override(Network)
-	modLoader.installScriptExtension("res://MultiHustle/game.gd")
+	modLoader.installScriptExtension("res://MultiHustle/Game.gd")
 	modLoader.installScriptExtension("res://MultiHustle/ReplayManager.gd")
 	ensure_script_override(ReplayManager)
-	modLoader.installScriptExtension("res://MultiHustle/main.gd")
+	modLoader.installScriptExtension("res://MultiHustle/Main.gd")
 	modLoader.installScriptExtension("res://MultiHustle/SteamLobby.gd")
 	modLoader.installScriptExtension("res://MultiHustle/characters/BaseChar.gd")
 	modLoader.installScriptExtension("res://MultiHustle/hitbox/Hitbox.gd")
@@ -39,8 +39,21 @@ func _init(modLoader = ModLoader):
 	#modLoader.saveScene(preload("res://MultiHustle/ui/SteamLobby/LobbyMatch.tscn").instance(), "res://ui/SteamLobby/LobbyMatch.tscn")
 
 	Network._whitelist_rpc_method("init_team_player")
+	
+	Network._whitelist_rpc_method("mh_resim")
+	Network._whitelist_rpc_method("accept_mh_resim")
+	Network._whitelist_rpc_method("request_mh_resim")
+
+	Network.connect("mh_resim_accepted", self, "on_resync")
 
 	print("Initialized")
+
+func on_resync(player):
+	Network.log_to_file("Checking if resync is ready.")
+	if Network.resync_counter == Network.game.players.size() and Network.player_id == 1:
+		Network.rpc_("mh_resim", [ReplayManager.frames])
+		Network.log_to_file("Rsyncing.")
+
 
 func ensure_save(modLoader, path):
 	var instance = load(path).instance()

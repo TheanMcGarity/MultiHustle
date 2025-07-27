@@ -9,7 +9,7 @@ var lock_sync_unlocks = true
 #Oh my god I hate this so much but it somehow works in testing dpajwojiosdfnikvkvknovnkonkoiopsja
 var mh_file_path = "user://logs/mhlogs" + Time.get_time_string_from_unix_time(int(Time.get_unix_time_from_system()-(Time.get_ticks_msec()/1000))).replace(":", ".") + ".log"
 var net_file_path = "user://logs/netlogs" + Time.get_time_string_from_unix_time(int(Time.get_unix_time_from_system()-(Time.get_ticks_msec()/1000))).replace(":", ".") + ".log"
-var logger = load("res://MultiHustle/logger.gd")
+var logger = load("res://MultiHustle/Logger.gd")
 
 # Util Functions
 
@@ -21,6 +21,7 @@ But I'm fairly confident that this should cover for now.
 """
 
 func log_to_file(msg, net = false):
+	print(msg)
 	self.log(msg, net)
 
 func log(msg, net = false):
@@ -276,8 +277,12 @@ func create_team_button(text:String, name:String, team:int, container:Node):
 
 signal mh_chat_message_received(id, message, username)
 remotesync func send_mh_chat_message(player_id, message, username):
-	print("debug chat -- message:"+message+" -- from: "+username)
 	emit_signal("mh_chat_message_received", player_id, message, username)
+	
+
+signal mh_chat_message_received_preformatted(message)
+remotesync func send_mh_chat_message_preformatted(message):
+	emit_signal("mh_chat_message_received_preformatted", message)
 	
 
 # TODO: Make an actual system that isnt this
@@ -330,3 +335,56 @@ func get_contains_string(option_button:OptionButton, string:String):
 		if string in option_button.get_item_text(i):
 			return true 
 	return false
+
+signal mh_resim_accepted(player)
+
+signal mh_resim_requested(player)
+
+remotesync func request_mh_resim(requester_id:int):
+	resync_counter = 1
+	resync_request_player_id = requester_id
+	emit_signal("mh_resim_requested", requester_id)
+
+var resync_request_player_id:int = 0
+
+
+
+remotesync func accept_mh_resim(player_id:int):
+	# todo: make better
+	resync_counter += 1
+
+	log_to_file("ACCEPT_MH_RESIM()->%d,%d)" % players.size, resync_counter)
+
+	if (self.player_id == player_id):
+		var team = Network.get_team(Network.player_id)
+		var color = Network.get_color(team)
+		var username = game.player_names[Network.player_id]
+		var msg = ("[color=#%s]%s[/color] clicked RESYNC. %d/%d" % [color, username, resync_counter, players.size()]) 
+
+		rpc_("send_mh_chat_message_preformatted", [msg])
+
+	
+	emit_signal("mh_resim_accepted", player_id)
+
+func request_softlock_fix():
+	if multiplayer_active:
+		rpc_("request_mh_resim", [Network.player_id])
+
+var resync_counter = 0
+
+func accept_softlock_fix():
+	if multiplayer_active:
+		rpc_("accept_mh_resim", [Network.player_id])
+
+remotesync func mh_resim(frames):
+	if player_id != 1:
+		ReplayManager.frames = frames
+	log_to_file("MH Resync from %s" % game.player_names[resync_request_player_id])
+	undo = true
+	auto = true
+
+	if is_instance_valid(game):
+		game.undo(false)
+
+	log_to_file("MH_RESIM()")
+	resync_request_player_id = 0

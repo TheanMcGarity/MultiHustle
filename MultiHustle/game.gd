@@ -1,7 +1,5 @@
 extends "res://game.gd"
 
-class_name MHGame
-
 var player_datas:Dictionary = {}
 
 var player_turns:Dictionary = {}
@@ -40,6 +38,8 @@ var network_simulate_readies:Dictionary = {}
 
 var player_names:Dictionary = {}
 var player_names_rich:Dictionary = {}
+
+signal team_game_won(winner)
 
 func copy_to(game):
 	set_vanilla_game_started(true)
@@ -236,9 +236,6 @@ func start_game(singleplayer:bool, match_data:Dictionary):
 		player.set_color(MultiHustle_get_color_by_index(index))
 		player.init()
 	
-	if not is_ghost:
-		Network.rpc_("set_display_name", [Steam.getPersonaName(), Network.player_id])
-
 	if match_data.has("selected_styles"):
 		for index in players.keys():
 			if match_data.selected_styles.has(index):
@@ -351,7 +348,6 @@ func start_game(singleplayer:bool, match_data:Dictionary):
 			player.gain_super_meter(meter_amount)
 
 	
-	
 
 func update_data():
 	set_vanilla_game_started(true)
@@ -428,10 +424,14 @@ func tick():
 	
 	var playerPorts = resolve_port_priority()
 
+	
+		
 	for player in playerPorts:
 		player.tick_before()
+
 	for player in playerPorts:
 		player.update_advantage()
+	
 	for player in playerPorts:
 		player.tick()
 
@@ -492,6 +492,7 @@ func tick():
 		if player.hp <= 0:
 			if not(player.game_over):
 				Network.team_living[player.team] -= 1
+				print("player death:" + str(player.team)+", team_living[]: "+str(Network.team_living))
 			
 			player.game_over = true
 		else:
@@ -558,9 +559,11 @@ func calc_team_is_living(var team:int):
 
 func calc_team_living_count(var team:int):
 	var team_alive = Network.team_living[team]
-
 	
 	return team_alive
+
+var is_team_win = false
+
 
 func should_game_end():
 	set_vanilla_game_started(true)
@@ -572,13 +575,23 @@ func should_game_end():
 	alive_teams -= int(calc_team_is_living(4))
 	
 	
+	is_team_win = alive_teams <= 1
+
+	var ffa_alive:bool = calc_team_is_living(0)
+
+	if ffa_alive:
+		is_team_win = false
 	
-	if (calc_team_is_living(0)):
+	is_team_win = not is_team_win # why does this work
+
+	if (ffa_alive):
 		var liveCount = len(players)
 		for player in players.values():
 			liveCount -= int(player.game_over)
+			
 		return (self.current_tick > self.time or liveCount <= 1)
 	
+
 	return alive_teams <= 1
 
 func get_all_pairs(list):
@@ -1008,26 +1021,42 @@ func end_game():
 				SteamHustle.unlock_achievement("ACH_CHESS")
 		ReplayManager.play_full = true
 	var winner = 0
-	var loser = 1
+	var losers = []
 	var highestHealth = 0
 	var lowestHealth = 9223372036854775807
+	
 	# TODO - Figure out better logic for losers
-	for index in players.keys():
-		var player = players[index]
-		if player.hp > highestHealth:
-			winner = index
-			highestHealth = player.hp
-		if player.hp < lowestHealth:
-			loser = index
-			lowestHealth = player.hp
+	if not is_team_win:
+		for index in players.keys():
+			var player = players[index]
+			if player.hp > highestHealth:
+				winner = index
+				highestHealth = player.hp
+			if player.hp < lowestHealth:
+				losers.append(index)
+				if (player.hp < lowestHealth):
+					lowestHealth = player.hp
+				
+		for loser in losers:
+			if get_player(loser).had_sadness:
+				if Network.multiplayer_active and winner == Network.player_id:
+					SteamHustle.unlock_achievement("ACH_WIN_VS_SADNESS")
+		emit_signal("game_ended")
 
-	if get_player(loser).had_sadness:
-		if Network.multiplayer_active and winner == Network.player_id:
-			SteamHustle.unlock_achievement("ACH_WIN_VS_SADNESS")
+		emit_signal("game_won", winner)
 
-	emit_signal("game_ended")
+	else:
+		for index in Network.teams.keys():
+			var count = calc_team_living_count(index)
+			if count > 0:
+				winner = index
+				break
+		emit_signal("game_ended")
 
-	emit_signal("game_won", winner)
+		emit_signal("team_game_won", winner)
+
+	
+
 
 func process_tick():
 	set_vanilla_game_started(true)

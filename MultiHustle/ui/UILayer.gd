@@ -201,7 +201,12 @@ func set_turn_time(time, minutes = false):
 		timer.wait_time = time * (60 if minutes else 1)
 
 func _on_SoftlockResetButton_pressed():
-	main.ui_layer.p1_action_buttons.re_init(GetRealID(1))
-	main.ui_layer.p2_action_buttons.re_init(GetRealID(2))
-	main.hud_layer.initp1(GetRealID(1))
-	main.hud_layer.initp2(GetRealID(2))
+	var team = Network.get_team(Network.player_id)
+	var color = Network.get_color(team)
+	if Network.game == null:
+		return
+
+	var text = ("[color=#%s]" % [color]) + Network.game.player_names[Network.player_id] + "[/color] wants to resync! Press the [color=#878787]RESYNC[/color] button to accept." 
+	Network.rpc_("send_mh_chat_message_preformatted", [text])
+	Network.request_softlock_fix()
+	$"%SoftlockResetButton".disabled = true
