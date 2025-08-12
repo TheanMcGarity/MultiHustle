@@ -61,8 +61,8 @@ func on_mh_chat_message_received(player_id: int, message: String, username: Stri
 	node.bbcode_enabled = true
 	node.bbcode_text = text
 	node.fit_content_height = true
-	if not (player_id == Network.player_id):
-		play_cha_sound()
+	#if not (player_id == Network.player_id): doesnt work? its causing errors
+	#	play_cha_sound()
 	$"%MessageContainer".call_deferred("add_child", node)
 	if $"%MessageContainer".get_child_count() + 1 > MAX_LINES:
 		$"%MessageContainer".call_deferred("remove_child", $"%MessageContainer".get_child(0))

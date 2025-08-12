@@ -1,20 +1,35 @@
 extends "res://MultiHustle/ui/HUD/CharacterSelect.gd"
 
+class_name OpponentCharacterSelect
+
+var self_char_index = 1
+
+const PAIR_SELECT_ID = 0
+
+func get_paired_selector(p := 0):
+	.get_paired_selector(PAIR_SELECT_ID)
+
+
 func PreConnect():
 	.PreConnect()
-	on_ParentChanged()
+	on_parent_changed()
+
 
 func _item_selected(index):
 	._item_selected(index)
-	if get_game().current_opponent_indicies[parent.activeCharIndex] != activeCharIndex:
-		get_game().current_opponent_indicies[parent.activeCharIndex] = activeCharIndex
-		parent.GetActionButtons().extra_updated()
+	self_char_index = parent.active_char_index
+	var paired_selector = get_paired_selector()
 
-func on_ParentChanged():
-	ReactivateAllAlive()
-	SelectIndex(get_game().current_opponent_indicies[parent.activeCharIndex])
-	DeactivateChar(parent.activeCharIndex)
-	DeactivateAllies()
+	#var pid = paired_selector.active_char_index
 
-func DeactivateAllies():
-	pass
+	if Network.multiplayer_active and not parent.visible:
+		self_char_index = Network.player_id
+
+	Network.select_opponent(self_char_index, active_char_index)
+	
+	parent.GetActionButtons().extra_updated()
+
+func on_parent_changed():
+	reactivate_all_alive()
+	select_index(get_game().current_opponent_indicies[parent.active_char_index])
+	deactivate_char(parent.active_char_index)

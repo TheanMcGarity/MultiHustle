@@ -50,7 +50,7 @@ func _init(modLoader = ModLoader):
 
 func on_resync(player):
 	Network.log_to_file("Checking if resync is ready.")
-	if Network.resync_counter == Network.game.players.size() and Network.player_id == 1:
+	if Network.resync_counter == Network.game.players.size() and Network.player_id == Network.resync_request_player_id:
 		Network.rpc_("mh_resim", [ReplayManager.frames])
 		Network.log_to_file("Rsyncing.")
 

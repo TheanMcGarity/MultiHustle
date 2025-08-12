@@ -58,9 +58,9 @@ func _on_sync_timer_request(id, time):
 	timer.paused = paused
 
 func id_to_action_buttons(player_id):
-	if multiHustle_UISelectors.selects[1][0].activeCharIndex == player_id:
+	if multiHustle_UISelectors.selects[1][0].active_char_index == player_id:
 		return $"%P1ActionButtons"
-	if multiHustle_UISelectors.selects[2][0].activeCharIndex == player_id:
+	if multiHustle_UISelectors.selects[2][0].active_char_index == player_id:
 		return $"%P2ActionButtons"
 	# Emergency Fallback
 	if player_id == 1:
@@ -109,7 +109,7 @@ func _on_turn_timer_timeout(player_id):
 	timer.paused = true
 
 func GetRealID(player_id):
-	return multiHustle_UISelectors.selects[player_id][0].activeCharIndex
+	return multiHustle_UISelectors.selects[player_id][0].active_char_index
 
 #Submits a blank action, used for locking all players in at once and locking in dead players
 func submit_dummy_action(player_id, action = "Continue", data = null, extras = null):
@@ -206,7 +206,7 @@ func _on_SoftlockResetButton_pressed():
 	if Network.game == null:
 		return
 
-	var text = ("[color=#%s]" % [color]) + Network.game.player_names[Network.player_id] + "[/color] wants to resync! Press the [color=#878787]RESYNC[/color] button to accept." 
+	var text = ("[color=#%s]" % [color]) + Network.game.player_names[Network.player_id] + "[/color] wants to resync! Press the \"[color=#878787]RESYNC[/color]\" button to accept." 
 	Network.rpc_("send_mh_chat_message_preformatted", [text])
 	Network.request_softlock_fix()
 	$"%SoftlockResetButton".disabled = true

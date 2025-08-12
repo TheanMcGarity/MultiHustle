@@ -47,6 +47,17 @@ func init(game):
 
 	game.connect("team_game_won", self, "on_team_won")
 
+func on_game_won(winner):
+	$"HudAnimationPlayer".play("game_won")
+	if winner == 0:
+		$"%WinLabel".text = "DRAW"
+	else:
+		if not Network.multiplayer_active or SteamLobby.SPECTATING:
+			$"%WinLabel".text = "P%d {%s) WON!" % [winner, Network.player_character_names[winner]] 
+		else:
+			$"%WinLabel".text = "%s WON!" % Network.game.player_names[winner]
+	SteamHustle.record_winner(winner)
+
 func on_team_won(winner):
 	$"HudAnimationPlayer".play("game_won")
 	var string:String
@@ -83,30 +94,35 @@ func initp1(p1index):
 	if is_instance_valid(game):
 		$"%P1Portrait".modulate = game.MultiHustle_get_color_by_index(p1index)
 	$"%P1FeintDisplay".fighter = p1
-	p1_healthbar.max_value = 1500
-	p1_health_bar_trail.max_value = 1500
-	p1_health_bar_trail.value = 1500
-	p1_ghost_health_bar_trail.max_value = 1500
-	p1_ghost_health_bar_trail.value = 1500
-	p1_ghost_health_bar.max_value = 1500
+	p1_healthbar.max_value = p1.MAX_HEALTH
+	p1_health_bar_trail.max_value = p1.MAX_HEALTH
+	p1_health_bar_trail.value = p1.MAX_HEALTH
+	p1_ghost_health_bar_trail.max_value = p1.MAX_HEALTH
+	p1_ghost_health_bar_trail.value = p1.MAX_HEALTH
+	p1_ghost_health_bar.max_value = p1.MAX_HEALTH
 	
-	mh_p1_healthbar.max_value = 1500
-	mh_p1_health_bar_trail.max_value = 1500
-	mh_p1_health_bar_trail.value = 1500
-	mh_p1_ghost_health_bar_trail.max_value = 1500
-	mh_p1_ghost_health_bar_trail.value = 1500
-	mh_p1_ghost_health_bar.max_value = 1500
+	mh_p1_healthbar.max_value = p1.MAX_HEALTH
+	mh_p1_health_bar_trail.max_value = p1.MAX_HEALTH
+	mh_p1_health_bar_trail.value = p1.MAX_HEALTH
+	mh_p1_ghost_health_bar_trail.max_value = p1.MAX_HEALTH
+	mh_p1_ghost_health_bar_trail.value = p1.MAX_HEALTH
+	mh_p1_ghost_health_bar.max_value = p1.MAX_HEALTH
 	
 	p1_super_meter.max_value = p1.MAX_SUPER_METER
 	p1_burst_meter.fighter = p1
 
-	if Network.multiplayer_active and not SteamLobby.SPECTATING and p1index == 1:
-		$"%P1Username".text = Network.game.player_names[1]
+	if Network.multiplayer_active and not SteamLobby.SPECTATING:
+		if (Network.game.player_names.has(p1index)):
+			$"%P1Username".text = Network.game.player_names[p1index]
+	elif not Network.multiplayer_active:
+		Network.player_character_names[p1index]
 	elif game.match_data.has("user_data"):
 		if game.match_data.user_data.has("p"+str(p1index)):
 			$"%P1Username".text = Network.game.player_names[p1index]
 	
 	$"%P1ShowStyle".set_pressed_no_signal(p1.is_style_active == true)
+
+	print("initp1->MAX_HEALTH=%d" % p1.MAX_HEALTH)
 
 func initp2(p2index):
 	self.p2index = p2index
@@ -115,28 +131,32 @@ func initp2(p2index):
 	$"%P2Portrait".texture = p2.character_portrait
 	if is_instance_valid(game):
 		$"%P2Portrait".self_modulate = game.MultiHustle_get_color_by_index(p2index)
-	p2_healthbar.max_value = 15000
-	p2_health_bar_trail.max_value = 15000
-	p2_health_bar_trail.value = 15000
+	p2_healthbar.max_value = p1.MAX_HEALTH * 10
+	p2_health_bar_trail.max_value = p1.MAX_HEALTH * 10
+	p2_health_bar_trail.value = p1.MAX_HEALTH * 10
 	$"%P2FeintDisplay".fighter = p2
-	p2_ghost_health_bar_trail.max_value = 15000
-	p2_ghost_health_bar_trail.value = 15000
-	mh_p2_ghost_health_bar_trail.max_value = 15000
-	mh_p2_ghost_health_bar_trail.value = 15000
+	p2_ghost_health_bar_trail.max_value = p1.MAX_HEALTH * 10
+	p2_ghost_health_bar_trail.value = p1.MAX_HEALTH * 10
+	mh_p2_ghost_health_bar_trail.max_value = p1.MAX_HEALTH * 10
+	mh_p2_ghost_health_bar_trail.value = p1.MAX_HEALTH * 10
 	
-	p2_ghost_health_bar.max_value = 15000
-	mh_p2_ghost_health_bar.max_value = 15000
+	p2_ghost_health_bar.max_value = p1.MAX_HEALTH * 10
+	mh_p2_ghost_health_bar.max_value = p1.MAX_HEALTH * 10
 	
 	p2_super_meter.max_value = p2.MAX_SUPER_METER
 	p2_burst_meter.fighter = p2
 
-	if Network.multiplayer_active and not SteamLobby.SPECTATING and p2index == 1:
-		Network.game.player_names[p2index]
+	if Network.multiplayer_active and not SteamLobby.SPECTATING:
+		if (Network.game.player_names.has(p2index)):
+			$"%P2Username".text = Network.game.player_names[p2index]
+	elif not Network.multiplayer_active:
+		$"%P2Username".text = Network.player_character_names[p2index]
 	elif game.match_data.has("user_data"):
 		if game.match_data.user_data.has("p"+str(p2index)):
 			$"%P2Username".text = Network.game.player_names[p2index]
 	
 	$"%P2ShowStyle".set_pressed_no_signal(p2.is_style_active == true)
+	print("initp2->MAX_HEALTH=%d" % p2.MAX_HEALTH)
 
 func reinit(p1index:int, p2index:int):
 	initp1(p1index)

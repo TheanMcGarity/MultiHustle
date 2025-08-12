@@ -1,3 +1,0 @@
-extends OptionButton
-
-func Init():

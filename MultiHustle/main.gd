@@ -81,7 +81,7 @@ func setup_game_deferred(singleplayer, data):
 	#Dumb patchwork fix so that the ui accurately shows who's selected when in multiplayer.
 	for id in uiselectors.selects.keys():
 		var charSelect = uiselectors.selects[id][0]
-		charSelect.InitUI(charSelect.get_activeChar().id)
+		charSelect.InitUI(charSelect.get_active_char().id)
 	var p1 = game.get_player(1)
 	var p2 = game.get_player(2)
 	p1.debug_label = $"%DebugLabelP1"
@@ -213,9 +213,15 @@ func make_afterimage():
 
 func MultiHustle_AddData():
 	var uiselectors = multiHustle_UISelectors.instance()
+	
+	if self.uiselectors != null:
+		ui_layer.multiHustle_UISelectors.queue_free()
+		self.uiselectors.queue_free()
+
 	ui_layer.add_child(uiselectors)
 	ui_layer.multiHustle_UISelectors = uiselectors
 	uiselectors.Init(self)
+
 	return uiselectors
 
 func fix_ghost_objects(ghost_game_):
