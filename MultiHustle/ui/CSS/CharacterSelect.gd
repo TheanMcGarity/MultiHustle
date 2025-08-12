@@ -28,6 +28,7 @@ func _on_network_character_selected(player_id, character, style = null):
 	if Network.is_host():
 		var match_data = get_match_data()
 		Network.rpc_("send_match_data", match_data)
+		
 
 func init(singleplayer = true):
 	
@@ -45,18 +46,15 @@ func init(singleplayer = true):
 func on_team_button_pressed(button):
 	print("Team button pressed! - "+button.name)
 	
+	if singleplayer:
+		Network.singleplayer_on_team_change(button.team_id, ("p%d" % current_player), current_player)
+		return
+	
 	var steam_id = Steam.getSteamID()
 	var username = Steam.getFriendPersonaName(steam_id)
 	
 	Network.rpc_("on_team_change", [button.team_id, username, Network.player_id])
 
-func team_init():
-	print("Teams Initialized!")
-	
-	var steam_id = Steam.getSteamID()
-	var username = Steam.getFriendPersonaName(steam_id)
-	
-	Network.rpc_("on_team_change", [0, username, Network.player_id])
 
 func _ready():
 	# Teams RPC
@@ -82,9 +80,7 @@ func _ready():
 	btn_blue.connect("pressed", self, "on_team_button_pressed", [btn_blue])
 	btn_yellow.connect("pressed", self, "on_team_button_pressed", [btn_yellow])
 	btn_green.connect("pressed", self, "on_team_button_pressed", [btn_green])
-	btn_ffa.connect("pressed", self, "on_team_button_pressed", [btn_green])
-	
-	btn_ffa.team_id = 0
+	btn_ffa.connect("pressed", self, "on_team_button_pressed", [btn_ffa])
 	
 	print("Created Teams UI")
 	
@@ -127,6 +123,12 @@ func _on_style_selected(style, pidx):
 
 func _on_button_pressed(button):
 	if singleplayer:
+		Network.player_character_names[current_player_real] = button.text
+		if Network.player_character_uses.has(button.text):
+			Network.player_character_uses[button.text] += 1
+		else:
+			Network.player_character_uses[button.text] = 1
+
 		._on_button_pressed(button)
 		if !Network.has_char_loader():
 			current_player_real = current_player_real + 1
@@ -140,6 +142,11 @@ func buffer_select(button):
 	post_button_edit(button)
 
 func post_button_edit(button):
+	var pid = current_player_real
+	if Network.multiplayer_active:
+		pid = Network.player_id
+	Network.team_init(pid)
+
 	if singleplayer:
 		current_player = current_player_real
 		selected_display_data[current_player - 1] = get_display_data(button)

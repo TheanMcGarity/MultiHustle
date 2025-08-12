@@ -39,7 +39,13 @@ var network_simulate_readies:Dictionary = {}
 var player_names:Dictionary = {}
 var player_names_rich:Dictionary = {}
 
+# Dictionary<int, Array<int>>
+# For example, {1:[2,3], 2:[], 3:[], 4:[]} means that player 1 has grabbed players 2 and 3 and player 4 is not grabbed and not grabbing anyone.
+var players_getting_throwed:Dictionary = {}
+
 signal team_game_won(winner)
+
+
 
 func copy_to(game):
 	set_vanilla_game_started(true)
@@ -162,16 +168,26 @@ func MultiHustle_get_color_by_index(index):
 func start_game(singleplayer:bool, match_data:Dictionary):
 	set_vanilla_game_started(true)
 
+	#print(match_data)
 	
 	if match_data.has("teams"):
 		var team_dict = match_data["teams"]
 		var replay_teams = {1:{},2:{},3:{},4:{},0:{}}
+		var replay_teams_living = {1:0,2:0,3:0,4:0,0:0}
 		for team_player in team_dict:
 			replay_teams[team_dict[team_player]][team_player] = null
+			replay_teams_living[team_dict[team_player]] += 1
 			pass
 		Network.teams = replay_teams
+		Network.team_living = replay_teams_living
+	# Only for compatibility with old replays
 	if match_data.has("display_names"):
 		player_names_rich = match_data["display_names"]
+	if match_data.has("rich_display_names"):
+		player_names_rich = match_data["rich_display_names"]
+
+	if match_data.has("selector_char_names"):
+		Network.player_character_names = match_data["selector_char_names"]
 
 	self.match_data = match_data
 	color_rng.seed = match_data.seed
@@ -424,10 +440,10 @@ func tick():
 	
 	var playerPorts = resolve_port_priority()
 
-	
 		
 	for player in playerPorts:
 		player.tick_before()
+		player.update_facing() # Facing fixes?
 
 	for player in playerPorts:
 		player.update_advantage()
@@ -552,23 +568,23 @@ func lower_health(_1, _2):
 		return 0
 	return 1 if p1_hp < p2_hp else 2
 
-func calc_team_is_living(var team:int):
+func calc_team_is_living(var team:int) -> bool:
 	var team_alive = Network.team_living[team]
 	
 	return team_alive < 1
 
-func calc_team_living_count(var team:int):
+func calc_team_living_count(var team:int) -> int:
 	var team_alive = Network.team_living[team]
 	
 	return team_alive
 
-var is_team_win = false
+var is_team_win := false
 
 
 func should_game_end():
 	set_vanilla_game_started(true)
 	
-	var alive_teams = 4
+	var alive_teams := 4
 	alive_teams -= int(calc_team_is_living(1))
 	alive_teams -= int(calc_team_is_living(2))
 	alive_teams -= int(calc_team_is_living(3))
@@ -576,15 +592,14 @@ func should_game_end():
 	
 	
 	is_team_win = alive_teams <= 1
+	var ffa_living = calc_team_living_count(0)
+	var ffa_alive := calc_team_living_count(0) > 0
 
-	var ffa_alive:bool = calc_team_is_living(0)
-
-	if ffa_alive:
-		is_team_win = false
-	
-	is_team_win = not is_team_win # why does this work
+	print("alive teams: %d, ffa alive: %s, ffa living count: %d, is team win: %s." % [alive_teams, ffa_alive, ffa_living, is_team_win])
 
 	if (ffa_alive):
+		is_team_win = false
+
 		var liveCount = len(players)
 		for player in players.values():
 			liveCount -= int(player.game_over)
@@ -666,6 +681,8 @@ func apply_hitboxes(players):
 		throws_consumed[player] = null
 		players_hittable_dic[player] = true
 
+	players_getting_throwed.clear()
+
 	# TODO - Prioritize overlaps to selected opponent
 	# TODO - Prioritize throw techs in consumption
 	for hitboxpair in get_all_pairs(players_w_hitboxes):
@@ -682,6 +699,7 @@ func apply_hitboxes(players):
 	"""
 	# This is to clear out any objects that got added to it
 	throws_consumed.clear()
+	
 
 # Currently if someone gets caught in a tech crossfire, they just get teched too
 # Only use players for throwee, otherwise set throws_consumed directly
@@ -698,6 +716,8 @@ func consume_throw_propagate(throwee):
 		throwee_target.state_machine.queue_state("ThrowTech")
 		throws_consumed[throwee] = true
 		consume_throw_propagate(throwee_target)
+
+
 
 # throws_consumed is handled by instance, but may be passed by reference in the future
 func apply_hitboxes_internal(playerhitboxpair:Array):
@@ -1000,8 +1020,9 @@ func is_waiting_on_player():
 	if not self.game_started:
 		return false
 	for player in players.values():
-		if player.state_interruptable:
-			return true
+		if not player.game_over:
+			if player.state_interruptable:
+				return true
 	return false
 
 
@@ -1117,7 +1138,7 @@ func process_tick():
 					player.busy_interrupt = ( not player.state_interruptable and not (player.current_state().interruptible_on_opponent_turn or player.feinting or negative_on_hit(player)))
 					if not player.busy_interrupt:
 						player.current_state().on_interrupt()
-					player.state_interruptable = true
+					player.state_interruptable = true;
 					player.show_you_label()
 					player_turns[index] = true
 					match index:
@@ -1446,6 +1467,6 @@ func process_opponents():
 							current_opponent_indicies[index] = queued_extra["opponent"]
 
 		# I probably don't need to do this every frame, but it doesn't really hurt.
-		player.opponent = players[current_opponent_indicies[index]]
+		#player.opponent = players[current_opponent_indicies[index]]
 		# TODO - Add some sort of a way to force update current target selection
 		#if !is_ghost:

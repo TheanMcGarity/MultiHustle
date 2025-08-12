@@ -11,6 +11,8 @@ var mh_file_path = "user://logs/mhlogs" + Time.get_time_string_from_unix_time(in
 var net_file_path = "user://logs/netlogs" + Time.get_time_string_from_unix_time(int(Time.get_unix_time_from_system()-(Time.get_ticks_msec()/1000))).replace(":", ".") + ".log"
 var logger = load("res://MultiHustle/Logger.gd")
 
+const DISABLE_LOGS = true
+
 # Util Functions
 
 """
@@ -20,11 +22,15 @@ If someone comes along who wants to fix this and make it properly ignore/remove/
 But I'm fairly confident that this should cover for now.
 """
 
+# This function is just so that i dont have to rename a ton of usages before this function got renamed without the usages being renamed as well.
 func log_to_file(msg, net = false):
-	print(msg)
 	self.log(msg, net)
 
 func log(msg, net = false):
+	if DISABLE_LOGS:
+		return
+	
+	print(msg)
 	if net:
 		logger.mh_log("[" + str(float(Time.get_ticks_msec())/1000.0) + "] " + msg, net_file_path)
 	else:
@@ -187,6 +193,7 @@ remote func player_disconnected(id):
 
 # Teams
 
+# username just is for printing to log.
 remotesync func on_team_change(team:int, username:String, player:int):
 	var team_name
 	var in_team = true
@@ -210,10 +217,6 @@ remotesync func on_team_change(team:int, username:String, player:int):
 		if team_dict.has(player):
 			team_living[team_key] -= 1
 			team_dict.erase(player)
-	
-	if not(in_team):
-		return
-	
 
 	team_living[team] += 1
 	teams[team][player] = null
@@ -251,10 +254,10 @@ func get_team(character_id:int):
 		if teams[team].has(character_id):
 			return team
 	
-	return 0 # if the character is not in a team (FFA)
+	return 0 # if the character is not in a team (including FFA)
 
 func get_color(id:int):
-	print("Getting color for team "+str(id))
+	#print("Getting color for team "+str(id)) laggy
 	match id:
 		1:
 			return "ff333d" # Red
@@ -299,8 +302,16 @@ func get_living_players_on_team(team:int):
 		living -= int(player.game_over)
 	return living
 
+
 remotesync func set_display_name(name:String, char_id:int):
-	game.player_names_rich[char_id] = "[center][color=#"+get_color(get_team(char_id))+"]"+name+"[/color][/center]"
+
+	var color = get_color(get_team(char_id));
+	
+	if name == null or name == "":
+		name = "!!Invalid Persona Name!!"
+		color = "630700"
+
+	game.player_names_rich[char_id] = "[center][color=#%s]%s[/color][/center]" % [color, name]
 	game.player_names[char_id] = name
 	
 	name_init_count += 1
@@ -377,7 +388,7 @@ func accept_softlock_fix():
 		rpc_("accept_mh_resim", [Network.player_id])
 
 remotesync func mh_resim(frames):
-	if player_id != 1:
+	if player_id != resync_request_player_id:
 		ReplayManager.frames = frames
 	log_to_file("MH Resync from %s" % game.player_names[resync_request_player_id])
 	undo = true
@@ -388,3 +399,66 @@ remotesync func mh_resim(frames):
 
 	log_to_file("MH_RESIM()")
 	resync_request_player_id = 0
+
+remotesync func select_opp(my_id, opp_id):
+	game.players[my_id].opponent = game.players[opp_id]
+	var opp_name = main.uiselectors.selects[2][0].get_char_name(opp_id)
+
+	if main.uiselectors.selects[2][0].active_char_index == my_id:
+		main.uiselectors.opp_target_label.text = "OPP TARGET: %s" % opp_name
+
+
+func select_opponent(self_id, opp_id):
+	print("select_opponent->self_id=%d opp_id=%d" % [self_id, opp_id])
+	if multiplayer_active:
+		rpc_("select_opp", [self_id, opp_id])
+	else: # Singleplayer port
+		game.players[self_id].opponent = game.players[opp_id]
+
+
+var player_character_names:Dictionary = {}
+var player_character_uses:Dictionary = {}
+
+func team_init(player:int):
+
+	if get_team(player) != 0:
+		return # Already on a team, no need to initialize.
+	
+	print("Teams Initialized for player %d!" % player)
+
+
+	if not multiplayer_active:
+		singleplayer_on_team_change(0, ("p%d" % player), player)
+		return
+
+	var steam_id = Steam.getSteamID()
+	var username = Steam.getFriendPersonaName(steam_id)
+	
+	rpc_("on_team_change", [0, username, Network.player_id])
+
+func singleplayer_on_team_change(team:int, username:String, player:int):
+	var team_name
+	var in_team = true
+	match team:
+		1:
+			team_name = "Red"
+		2:
+			team_name = "Blue"
+		3:
+			team_name = "Yellow"
+		4:
+			team_name = "Green"
+		_:
+			team_name = "None"
+			in_team = false
+	
+	print(username+"'s team changed to "+str(team_name))
+	
+	for team_key in teams:
+		var team_dict = teams[team_key]
+		if team_dict.has(player):
+			team_living[team_key] -= 1
+			team_dict.erase(player)
+	
+	team_living[team] += 1
+	teams[team][player] = null

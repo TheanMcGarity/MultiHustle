@@ -27,9 +27,10 @@ func undo(cut = true):
 			if frame > last_frame:
 				last_frame = frame
 				last_id = id
+	
 		if cut:
-			for id in frame_ids():
-				frames[id].erase(last_frame)
+			frames[id].erase(last_frame)
+	
 	resimulating = true
 	playback = true
 	resim_tick = (last_frame - 2) if cut else - 1
@@ -50,6 +51,15 @@ func save_replay(match_data: Dictionary, file_name = "", autosave = false):
 		team_data[player] = Network.get_team(player)
 
 	match_data["teams"] = team_data
-	match_data["display_names"] = Network.game.player_names_rich
+
+	# would rename to rich_display_names but that would break existing teams replays
+	match_data["rich_display_names"] = Network.game.player_names_rich
+
+	var char_names:Dictionary;
+	if Network.multiplayer_active:
+		char_names = Network.game.player_names
+	else:
+		char_names = Network.player_character_names
+	match_data["selector_char_names"] = char_names
 
 	.save_replay(match_data, file_name, autosave)

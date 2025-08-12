@@ -1,15 +1,24 @@
 extends "res://MultiHustle/ui/HUD/CharacterSelect.gd"
 
+class_name SelfCharacterSelect
+
 onready var opponentSelect
 
-func PreConnect():
-	.PreConnect()
-	SelectIndex(id)
-	opponentSelect.Init(main, id)
+# TODO: fix the naming style to fit with rest of code
 
-func DeactivateChar(index:int):
-	ReactivateAllAlive()
-	.DeactivateChar(index)
+const PAIR_SELECT_ID = 1
+
+func get_paired_selector(p := 0):
+	.get_paired_selector(PAIR_SELECT_ID)
+
+func pre_connect():
+	.pre_connect()
+	select_index(id)
+	opponentSelect.init(main, id)
+
+func deactivate_char(index:int):
+	reactivate_all_alive()
+	.deactivate_char(index)
 
 func _item_selected(index):
 	._item_selected(index)
@@ -17,7 +26,8 @@ func _item_selected(index):
 	GetActionButtons().re_init(realIndex)
 	InitUI(realIndex)
 	parent.DeactivateOther(id, realIndex)
-	opponentSelect.on_ParentChanged()
+	opponentSelect.on_parent_changed()
+	parent.opp_target_label.text = "OPP TARGET: %s" % get_char_name(opponentSelect.active_char_index)
 
 func InitUI(index:int):
 	InitHUD(index)
@@ -36,12 +46,12 @@ func InitHUD(index:int):
 		2:
 			main.hud_layer.initp2(index)
 
-func ClearGameOver():
+func clear_game_over():
 	var game = get_game()
 	for player in game.players.values():
-		if get_activeChar().game_over:
+		if get_active_char().game_over:
 			var active_chars = parent.GetAllActiveChars()
 			if !active_chars.has(player):
-				SelectChar(player)
+				select_char(player)
 				break
-	.ClearGameOver()
+	.clear_game_over()
