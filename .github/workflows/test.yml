@@ -1,0 +1,36 @@
+name: Create and publish release
+
+on:
+  push:
+    paths:
+      - 'version.txt'
+    branches:
+      - main
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        token: ${{ secrets.GIT_TOKEN }}
+    - name: Zip folder
+      id: zip_folder
+      run: zip -r MultiHustle.zip MultiHustle/
+    - name: Set tag variable
+      id: set_tag
+      run: |
+        echo "tag=v$(cat version.txt)" >> "$GITHUB_ENV"
+    - name: Tag commit
+      uses: tvdias/github-tagger@v0.0.1
+      with:
+        repo-token: ${{ secrets.GIT_TOKEN }}
+        tag: ${{ env.tag }}
+    - name: Create release
+      id: create_release
+      uses: ncipollo/release-action@v1
+      with:
+        token: ${{ secrets.GIT_TOKEN }}
+        tag: ${{ env.tag }}
+        artifacts: ./MultiHustle.zip
+        makeLatest: true
