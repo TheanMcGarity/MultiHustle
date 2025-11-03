@@ -11,6 +11,8 @@ var next_char_button
 
 const TEAM_BUTTON_SCENE = preload("res://MultiHustle/Teams/TeamButtonList.tscn")
 
+
+
 func _on_CharacterSelect_visibility_changed():
 	pass
 

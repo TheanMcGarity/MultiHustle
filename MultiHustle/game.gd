@@ -206,6 +206,13 @@ func start_game(singleplayer:bool, match_data:Dictionary):
 		player.connect("parried", self, "on_parry")
 		player.connect("clashed", self, "on_clash")
 		player.connect("predicted", self, "on_prediction", [player])
+	for player_id in Network.teams[0].keys():
+		if not players.has(player_id):
+			var team_dict = Network.teams[0]
+			if team_dict.has(player_id):
+				Network.team_living[0] -= 1
+				team_dict.erase(player_id)
+		
 	self.stage_width = Utils.int_clamp(match_data.stage_width, 100, 50000)
 	if match_data.has("game_length"):
 		self.time = match_data["game_length"]
