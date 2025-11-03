@@ -48,12 +48,27 @@ func on_team_button_pressed(button):
 	
 	if singleplayer:
 		Network.singleplayer_on_team_change(button.team_id, ("p%d" % current_player), current_player)
+		set_display_color(button.team_id)
 		return
 	
 	var steam_id = Steam.getSteamID()
 	var username = Steam.getFriendPersonaName(steam_id)
 	
 	Network.rpc_("on_team_change", [button.team_id, username, Network.player_id])
+
+func set_display_color(team):
+	var right:bool = current_player_real != 1
+
+	var label:Label = $"%P1Display".get_node("PlayerLabel")
+	if right:
+		label = $"%P2Display".get_node("PlayerLabel")
+	
+	label.add_color_override("font_color", Network.get_color(team))
+
+func set_viewing_display_color(team):
+	var label:Label = $"%P1Display".get_node("PlayerLabel")
+	
+	label.add_color_override("font_color", Network.get_color(team))
 
 
 func _ready():
@@ -114,6 +129,7 @@ func _update_viewing_char(by):
 	var data = selected_display_data[viewing_character]
 	$"%P1Display"._on_style_selected(style)
 	$"%P1Display".load_character_data(data)
+	set_viewing_display_color(Network.get_team(viewing_character))
 
 func _on_style_selected(style, pidx):
 	if pidx == 1:
@@ -132,6 +148,7 @@ func _on_button_pressed(button):
 		._on_button_pressed(button)
 		if !Network.has_char_loader():
 			current_player_real = current_player_real + 1
+			set_display_color(0)
 			post_button_edit(button)
 	else:
 		._on_button_pressed(button)
@@ -139,6 +156,7 @@ func _on_button_pressed(button):
 func buffer_select(button):
 	.buffer_select(button)
 	current_player_real = current_player_real + 1
+	set_display_color(0)
 	post_button_edit(button)
 
 func post_button_edit(button):

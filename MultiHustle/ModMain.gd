@@ -35,6 +35,7 @@ func _init(modLoader = ModLoader):
 	modLoader.installScriptExtension("res://MultiHustle/SteamLobby.gd")
 	modLoader.installScriptExtension("res://MultiHustle/characters/BaseChar.gd")
 	modLoader.installScriptExtension("res://MultiHustle/hitbox/Hitbox.gd")
+	modLoader.installScriptExtension("res://MultiHustle/hitbox/HitboxData.gd")
 	
 	#modLoader.saveScene(preload("res://MultiHustle/ui/SteamLobby/LobbyMatch.tscn").instance(), "res://ui/SteamLobby/LobbyMatch.tscn")
 
@@ -45,6 +46,8 @@ func _init(modLoader = ModLoader):
 	Network._whitelist_rpc_method("request_mh_resim")
 
 	Network.connect("mh_resim_accepted", self, "on_resync")
+
+	
 
 	print("Initialized")
 

@@ -1,12 +1,15 @@
 extends "res://mechanics/Hitbox.gd"
 
+const MH_HITBOX_DATA = preload("res://MultiHustle/hitbox/HitboxData.gd")
+
 export (int) var team = 0
 
 
 func to_data():
 	Network.log("to_data -> team="+str(team))
-	var data = HitboxData.new(self)
-	Network.temp_hitbox_teams[data] = team
+	var data = MH_HITBOX_DATA.new(self)
+	data.team = team
+	Network.log("to_data -> data.team="+str(data.team))
 	return data
 
 func hit(obj):

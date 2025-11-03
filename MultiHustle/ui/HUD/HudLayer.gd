@@ -131,17 +131,17 @@ func initp2(p2index):
 	$"%P2Portrait".texture = p2.character_portrait
 	if is_instance_valid(game):
 		$"%P2Portrait".self_modulate = game.MultiHustle_get_color_by_index(p2index)
-	p2_healthbar.max_value = p1.MAX_HEALTH * 10
-	p2_health_bar_trail.max_value = p1.MAX_HEALTH * 10
-	p2_health_bar_trail.value = p1.MAX_HEALTH * 10
+	p2_healthbar.max_value = p2.MAX_HEALTH * 10
+	p2_health_bar_trail.max_value = p2.MAX_HEALTH * 10
+	p2_health_bar_trail.value = p2.MAX_HEALTH * 10
 	$"%P2FeintDisplay".fighter = p2
-	p2_ghost_health_bar_trail.max_value = p1.MAX_HEALTH * 10
-	p2_ghost_health_bar_trail.value = p1.MAX_HEALTH * 10
-	mh_p2_ghost_health_bar_trail.max_value = p1.MAX_HEALTH * 10
-	mh_p2_ghost_health_bar_trail.value = p1.MAX_HEALTH * 10
+	p2_ghost_health_bar_trail.max_value = p2.MAX_HEALTH * 10
+	p2_ghost_health_bar_trail.value = p2.MAX_HEALTH * 10
+	mh_p2_ghost_health_bar_trail.max_value = p2.MAX_HEALTH * 10
+	mh_p2_ghost_health_bar_trail.value = p2.MAX_HEALTH * 10
 	
-	p2_ghost_health_bar.max_value = p1.MAX_HEALTH * 10
-	mh_p2_ghost_health_bar.max_value = p1.MAX_HEALTH * 10
+	p2_ghost_health_bar.max_value = p2.MAX_HEALTH * 10
+	mh_p2_ghost_health_bar.max_value = p2.MAX_HEALTH * 10
 	
 	p2_super_meter.max_value = p2.MAX_SUPER_METER
 	p2_burst_meter.fighter = p2

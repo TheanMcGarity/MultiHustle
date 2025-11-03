@@ -308,27 +308,14 @@ func start_game(singleplayer:bool, match_data:Dictionary):
 				if ReplayManager.frames[id].size() > 0:
 					ReplayManager.playback = true
 
-	var height = 0
-	if match_data.has("char_height"):
-		height = - match_data.char_height
+	# Set player positions
+	process_player_positions()
 
-	var alternation: bool = false
-	var tempDistance = self.char_distance
-	for player in players.values():
-		if alternation == false:
-			player.set_pos( - tempDistance, height)
-			alternation = true
-		else:
-			player.set_pos(tempDistance, height)
-			tempDistance = tempDistance + self.char_distance
-			alternation = false
-
-		player.stage_width = self.stage_width
 	if self.stage_width >= 320:
 		self.camera.limit_left = - self.stage_width - 20
 		self.camera.limit_right = self.stage_width + 20
 
-
+    
 
 	#Here is where we have a problem, leaving it be for now
 	for index in players.keys():
@@ -363,6 +350,161 @@ func start_game(singleplayer:bool, match_data:Dictionary):
 			var player = players[index]
 			player.gain_super_meter(meter_amount)
 
+func process_player_positions():
+	var height = 0
+	if match_data.has("char_height"):
+		height = - match_data.char_height
+
+	var tempDistance = self.char_distance
+	var alternation: bool = false
+
+	var team_pos_data = calc_player_order()
+
+	if not is_ghost:
+		print("team_pos_data: "+str(team_pos_data))
+
+	match team_pos_data.size():
+		1:
+			for player in players.values():
+				if alternation == false:
+					player.set_pos(-tempDistance, height)
+					alternation = true
+				else:
+					player.set_pos(tempDistance, height)
+					tempDistance = (self.char_distance * 2) + tempDistance
+					alternation = false
+
+				player.stage_width = self.stage_width
+		2:
+			for idx in team_pos_data[0]:
+				var player = players[idx]
+				
+				player.set_pos(tempDistance, height)
+				tempDistance = self.char_distance + tempDistance
+
+				player.stage_width = self.stage_width
+
+			tempDistance = self.char_distance
+
+			for idx in team_pos_data[1]:
+				var player = players[idx]
+				
+				player.set_pos(-tempDistance, height)
+				tempDistance = self.char_distance + tempDistance
+
+				player.stage_width = self.stage_width
+		4:
+			for idx in team_pos_data[0]:
+				var player = players[idx]
+				
+				player.set_pos(tempDistance, height)
+				tempDistance = self.char_distance + tempDistance
+
+				player.stage_width = self.stage_width
+
+			tempDistance = self.char_distance + tempDistance
+
+			for idx in team_pos_data[1]:
+				var player = players[idx]
+				
+				player.set_pos(tempDistance, height)
+				tempDistance = self.char_distance + tempDistance
+
+				player.stage_width = self.stage_width
+
+			tempDistance = self.char_distance
+
+			for idx in team_pos_data[2]:
+				var player = players[idx]
+				
+				player.set_pos(-tempDistance, height)
+				tempDistance = self.char_distance + tempDistance
+
+				player.stage_width = self.stage_width
+			
+			tempDistance = self.char_distance + tempDistance
+			
+			for idx in team_pos_data[3]:
+				var player = players[idx]
+				
+				player.set_pos(-tempDistance, height)
+				tempDistance = self.char_distance + tempDistance
+
+				player.stage_width = self.stage_width
+		3:
+			for idx in team_pos_data[0]:
+				var player = players[idx]
+				
+				player.set_pos(tempDistance, height)
+				tempDistance = self.char_distance + tempDistance
+
+				player.stage_width = self.stage_width
+
+
+			tempDistance = self.char_distance + tempDistance
+			for idx in team_pos_data[1]:
+				var player = players[idx]
+
+				player.set_pos(tempDistance, height)
+				tempDistance = self.char_distance + tempDistance
+
+				player.stage_width = self.stage_width	
+				tempDistance = self.char_distance
+
+			tempDistance = self.char_distance
+
+			for idx in team_pos_data[2]:
+				var player = players[idx]
+				
+				player.set_pos(-tempDistance, height)
+				tempDistance = self.char_distance + tempDistance
+
+				player.stage_width = self.stage_width
+		5:
+			for idx in team_pos_data[0]:
+				var player = players[idx]
+				
+				player.set_pos(tempDistance, height)
+				tempDistance = self.char_distance + tempDistance
+
+				player.stage_width = self.stage_width
+			
+			tempDistance = self.char_distance + tempDistance
+
+			for idx in team_pos_data[1]:
+				var player = players[idx]
+				
+				player.set_pos(tempDistance, height)
+				tempDistance = self.char_distance + tempDistance
+
+				player.stage_width = self.stage_width
+
+			tempDistance = self.char_distance
+
+			for idx in team_pos_data[2]:
+				var player = players[idx]
+
+				player.set_pos(-tempDistance, height)
+				tempDistance = self.char_distance + tempDistance
+
+			tempDistance = self.char_distance + tempDistance
+			for idx in team_pos_data[3]:
+				var player = players[idx]
+				
+				player.set_pos(-tempDistance, height)
+				tempDistance = self.char_distance + tempDistance
+
+				player.stage_width = self.stage_width
+				
+			tempDistance = self.char_distance + tempDistance
+
+			for idx in team_pos_data[4]:
+				var player = players[idx]
+				
+				player.set_pos(-tempDistance, height)
+				tempDistance = self.char_distance + tempDistance
+
+				player.stage_width = self.stage_width
 	
 
 func update_data():
@@ -443,7 +585,6 @@ func tick():
 		
 	for player in playerPorts:
 		player.tick_before()
-		player.update_facing() # Facing fixes?
 
 	for player in playerPorts:
 		player.update_advantage()
@@ -513,6 +654,12 @@ func tick():
 			player.game_over = true
 		else:
 			player.game_over = false
+	
+	if not is_ghost:
+		var opp = Network.main.uiselectors.selects[2][0].active_char_index
+		var opp_target = Network.main.uiselectors.selects[2][0].get_char_name(opp)
+
+		Network.main.uiselectors.opp_target_label.text = "OPP TARGET: %s" % opp_target
 
 func resolve_port_priority(id = false):
 	set_vanilla_game_started(true)
@@ -1467,6 +1614,22 @@ func process_opponents():
 							current_opponent_indicies[index] = queued_extra["opponent"]
 
 		# I probably don't need to do this every frame, but it doesn't really hurt.
-		#player.opponent = players[current_opponent_indicies[index]]
+		if not Network.multiplayer_active:
+			if Network.sp_opp_dict.has(index):
+				player.opponent = players[Network.sp_opp_dict[index]]
 		# TODO - Add some sort of a way to force update current target selection
 		#if !is_ghost:
+
+func calc_player_order():
+    var buckets := {}
+    for id in players.keys():
+        var team = Network.get_team(id)
+        if not buckets.has(team):
+            buckets[team] = []
+        buckets[team].append(id)
+    var order := []
+    var keys := buckets.keys()
+    keys.sort()
+    for k in keys:
+        order.append(buckets[k])
+    return order

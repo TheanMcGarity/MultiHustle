@@ -63,8 +63,10 @@ func get_nodes_with_script(root: Node, script_type: Script) -> Array:
 
 	return result
 	
-
-
+func change_state(state_name, state_data = null, enter = true, exit = true):
+	.change_state(state_name, state_data, enter, exit)
+	
+	update_facing() # Facing fixes?
 
 func hit_by(hitbox, force_hit = false):
 	Network.log("player was hit!")
@@ -75,12 +77,8 @@ func hit_by(hitbox, force_hit = false):
 		return
 
 	var self_team = team
-	if not Network.temp_hitbox_teams.has(hitbox):
-		Network.log("Vanilla Hit")
-		.hit_by(hitbox, force_hit)
-		return
 	
-	var hb_team = Network.temp_hitbox_teams[hitbox]
+	var hb_team = hitbox.team #Network.temp_hitbox_teams[hitbox]
 	
 	Network.log("hit_by -> self_team="+str(self_team)+", hb_team="+str(hb_team))
 	
@@ -152,18 +150,21 @@ func tick():
 			# Basically
 			# !sent_name && id == Network.player_id
 			if not sent_name and id == Network.player_id:
-				Network.rpc_("set_display_name", [Steam.getFriendPersonaName(Steam.getSteamID()), Network.player_id])
+				Network.rpc_("set_display_name", [Steam.getPersonaName(), Network.player_id])
 				sent_name = true
 		else:
 			if not sent_name:
 				singleplayer_set_display_name()
-
+		
 	if display_name == null:
 		init_display_name()
 
+	
+	var name := ""
+
 	if (Network.game.player_names_rich.has(id)):
-		var name = Network.game.player_names_rich[id]
-		
+		name = Network.game.player_names_rich[id]
+	
 	if name is String and "center" in name and not set_name:
 		set_name_text(name)
 		set_name = true

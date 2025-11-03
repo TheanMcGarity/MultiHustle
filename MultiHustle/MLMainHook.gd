@@ -1,7 +1,7 @@
 extends "res://modloader/MLMainHook.gd"
 
 var hasIncompat = false
-
+var donate_menu
 const testedVersion = "1.9.20-steam"
 
 const incompat_list = [
@@ -13,6 +13,29 @@ func _ready():
 	if not Global.VERSION.match("*MH-*"):
 		Global.VERSION += " MH-" + ModLoader._readMetadata("res://MultiHustle/_metadata")["version"]
 	MH_addWarningMessage()
+
+	generate_donation_screen()
+
+func generate_donation_screen():
+	var button = addMainMenuButton("Support MultiHustle")
+	var scene = load("res://MultiHustle/ui/Donate/DonateMenu.tscn")
+	donate_menu = scene.instance()
+	donate_menu.hide()
+	get_tree().get_root().get_node("Main").get_node("UILayer").add_child(donate_menu)
+	button.connect("pressed", self, "on_donate_menu_pressed")
+	donate_menu.find_node("Close").connect("pressed", self, "on_donate_menu_closed")
+
+func on_donate_menu_pressed():
+	#print(donate_menu.visible)
+	print(donate_menu.rect_position)
+	#print(donate_menu.rect_size)
+	donate_menu.rect_position = (get_viewport().size - donate_menu.rect_size) / 2
+	print("Opening donation menu")
+	donate_menu.show()
+
+func on_donate_menu_closed():
+	print("Closing donation menu")
+	donate_menu.hide()
 
 func MH_addWarningMessage():
 	var list = addContainer("MHModIncompatibleContainer", "MultiHustle Incompatibilities")

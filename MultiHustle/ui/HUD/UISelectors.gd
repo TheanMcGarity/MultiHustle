@@ -50,8 +50,8 @@ func Init(main):
 			assigned_ids.append(new_id)
 		
 	if Network.multiplayer_active:
-		selects[2][1].hide()
-		opp_target_label.show()
+		selects[2][1].visible = false
+		opp_target_label.visible = true
 
 	# TODO - Make this more expandable
 	Network.log_to_file("Network Player ID: " + str(Network.player_id) + " | Assigned IDs: " + str(assigned_ids))
@@ -95,8 +95,8 @@ func reinit(main):
 	Network.log_to_file("(ReInit) Network Player ID: " + str(Network.player_id))
 	
 	if Network.multiplayer_active:
-		selects[2][1].hide()
-		opp_target_label.show()
+		selects[2][1].visible = false
+		opp_target_label.visible = true
 
 func DeactivateOther(selfId:int, charId:int):
 	match(selfId):

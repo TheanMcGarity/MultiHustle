@@ -3,11 +3,13 @@
   "client_side": false,
   "description": "Allows for more than 2 players",
   "friendly_name": "Multi Hustle",
-  "id": "multi_hustle",
+  "id": "12345",
   "link": "",
   "name": "MultiHustle",
   "overwrites": false,
   "priority": -9999,
-  "requires": [],
+  "requires": [
+
+  ],
   "version": "0.8.0"
 }

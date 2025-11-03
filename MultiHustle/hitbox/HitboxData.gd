@@ -1,7 +1,6 @@
 extends "res://mechanics/HitboxData.gd"
 
-var owner_team = 0
+var team = 0
 
-func init(state:Hitbox):
-	.init(state)
-	owner_team = state.owner_team
+func _init(state).(state):
+	team = state.team

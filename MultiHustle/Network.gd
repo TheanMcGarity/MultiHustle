@@ -11,7 +11,7 @@ var mh_file_path = "user://logs/mhlogs" + Time.get_time_string_from_unix_time(in
 var net_file_path = "user://logs/netlogs" + Time.get_time_string_from_unix_time(int(Time.get_unix_time_from_system()-(Time.get_ticks_msec()/1000))).replace(":", ".") + ".log"
 var logger = load("res://MultiHustle/Logger.gd")
 
-const DISABLE_LOGS = true
+const DISABLE_LOGS = false
 
 # Util Functions
 
@@ -398,14 +398,23 @@ remotesync func mh_resim(frames):
 		game.undo(false)
 
 	log_to_file("MH_RESIM()")
+
+	var ui = main.ui_layer
+	for player in game.players:
+		var real_id = ui.GetRealID(player)
+		var timer = ui.turn_timers[real_id]
+		if timer:
+			timer.start(ui.turn_time)
+			timer.paused = false
+
 	resync_request_player_id = 0
 
 remotesync func select_opp(my_id, opp_id):
 	game.players[my_id].opponent = game.players[opp_id]
-	var opp_name = main.uiselectors.selects[2][0].get_char_name(opp_id)
+	#var opp_name = main.uiselectors.selects[2][0].get_char_name(opp_id)
 
-	if main.uiselectors.selects[2][0].active_char_index == my_id:
-		main.uiselectors.opp_target_label.text = "OPP TARGET: %s" % opp_name
+	#if main.uiselectors.selects[2][0].active_char_index == my_id:
+	#	main.uiselectors.opp_target_label.text = "OPP TARGET: %s" % opp_name
 
 
 func select_opponent(self_id, opp_id):
@@ -414,6 +423,7 @@ func select_opponent(self_id, opp_id):
 		rpc_("select_opp", [self_id, opp_id])
 	else: # Singleplayer port
 		game.players[self_id].opponent = game.players[opp_id]
+		sp_opp_dict[self_id] = opp_id
 
 
 var player_character_names:Dictionary = {}
@@ -462,3 +472,5 @@ func singleplayer_on_team_change(team:int, username:String, player:int):
 	
 	team_living[team] += 1
 	teams[team][player] = null
+
+var sp_opp_dict = {}
