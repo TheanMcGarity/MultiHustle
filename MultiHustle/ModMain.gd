@@ -46,14 +46,12 @@ func _init(modLoader = ModLoader):
 	Network._whitelist_rpc_method("request_mh_resim")
 
 	Network.connect("mh_resim_accepted", self, "on_resync")
-
 	
-
 	print("Initialized")
 
 func on_resync(player):
 	Network.log_to_file("Checking if resync is ready.")
-	if Network.resync_counter == Network.game.players.size() and Network.player_id == Network.resync_request_player_id:
+	if Network.resync_counter == Network.game.players.size() - Network.game.quitters.size() and Network.player_id == Network.resync_request_player_id:
 		Network.rpc_("mh_resim", [ReplayManager.frames])
 		Network.log_to_file("Rsyncing.")
 

@@ -43,8 +43,9 @@ var player_names_rich:Dictionary = {}
 # For example, {1:[2,3], 2:[], 3:[], 4:[]} means that player 1 has grabbed players 2 and 3 and player 4 is not grabbed and not grabbing anyone.
 var players_getting_throwed:Dictionary = {}
 
-signal team_game_won(winner)
+var quitters:Array = []
 
+signal team_game_won(winner)
 
 
 func copy_to(game):
@@ -206,12 +207,14 @@ func start_game(singleplayer:bool, match_data:Dictionary):
 		player.connect("parried", self, "on_parry")
 		player.connect("clashed", self, "on_clash")
 		player.connect("predicted", self, "on_prediction", [player])
-	for player_id in Network.teams[0].keys():
-		if not players.has(player_id):
+	
+	if not Network.multiplayer_active:
+		var team0_last = Network.teams[0][Network.teams[0].keys()[-1]]
+		if not players.has(team0_last):
 			var team_dict = Network.teams[0]
-			if team_dict.has(player_id):
+			if team_dict.has(team0_last):
 				Network.team_living[0] -= 1
-				team_dict.erase(player_id)
+				team_dict.erase(team0_last)
 		
 	self.stage_width = Utils.int_clamp(match_data.stage_width, 100, 50000)
 	if match_data.has("game_length"):
@@ -322,7 +325,7 @@ func start_game(singleplayer:bool, match_data:Dictionary):
 		self.camera.limit_left = - self.stage_width - 20
 		self.camera.limit_right = self.stage_width + 20
 
-    
+	
 
 	#Here is where we have a problem, leaving it be for now
 	for index in players.keys():
@@ -835,8 +838,6 @@ func apply_hitboxes(players):
 		throws_consumed[player] = null
 		players_hittable_dic[player] = true
 
-	players_getting_throwed.clear()
-
 	# TODO - Prioritize overlaps to selected opponent
 	# TODO - Prioritize throw techs in consumption
 	for hitboxpair in get_all_pairs(players_w_hitboxes):
@@ -858,18 +859,86 @@ func apply_hitboxes(players):
 # Currently if someone gets caught in a tech crossfire, they just get teched too
 # Only use players for throwee, otherwise set throws_consumed directly
 func consume_throw_by(thrower, throwee, is_tech):
+	if !throws_consumed.has(thrower):
+		throws_consumed[thrower] = null
 	consume_throw_propagate(throwee)
 	if !is_tech:
-		throws_consumed[thrower] = throwee
+		var current = throws_consumed[thrower]
+		if current == null or current == true:
+			current = []
+		if current is Array:
+			if not current.has(throwee):
+				current.append(throwee)
+				_register_players_getting_throwed(thrower, throwee)
+		throws_consumed[thrower] = current
 	else:
 		thrower.state_machine.queue_state("ThrowTech")
 		throws_consumed[thrower] = true
+		_unregister_players_getting_throwed(thrower)
 func consume_throw_propagate(throwee):
-	var throwee_target = throws_consumed[throwee]
-	if throwee_target != null && throwee_target != true:
-		throwee_target.state_machine.queue_state("ThrowTech")
+	if !throws_consumed.has(throwee):
+		return
+	var throwee_targets = throws_consumed[throwee]
+	if throwee_targets == null or throwee_targets == true:
+		return
+	if throwee_targets is Array:
 		throws_consumed[throwee] = true
-		consume_throw_propagate(throwee_target)
+		_unregister_players_getting_throwed(throwee)
+		for target in throwee_targets:
+			if is_instance_valid(target):
+				target.state_machine.queue_state("ThrowTech")
+				consume_throw_propagate(target)
+
+func _register_players_getting_throwed(thrower, throwee):
+	if thrower == null or throwee == null:
+		return
+	if not thrower.is_in_group("Fighter") or not throwee.is_in_group("Fighter"):
+		return
+	var thrower_id = thrower.id
+	var throwee_id = throwee.id
+	if thrower_id == null or throwee_id == null:
+		return
+	if not players_getting_throwed.has(thrower_id):
+		players_getting_throwed[thrower_id] = []
+	if not players_getting_throwed[thrower_id].has(throwee_id):
+		players_getting_throwed[thrower_id].append(throwee_id)
+
+func _unregister_players_getting_throwed(thrower, throwee = null):
+	if thrower == null:
+		return
+	if not thrower.is_in_group("Fighter"):
+		return
+	var thrower_id = thrower.id
+	if thrower_id == null:
+		return
+	if not players_getting_throwed.has(thrower_id):
+		return
+	if throwee == null:
+		players_getting_throwed.erase(thrower_id)
+		return
+	if not throwee.is_in_group("Fighter"):
+		return
+	var throwee_id = throwee.id
+	if throwee_id == null:
+		return
+	players_getting_throwed[thrower_id].erase(throwee_id)
+	if players_getting_throwed[thrower_id].empty():
+		players_getting_throwed.erase(thrower_id)
+
+func _thrower_locked_out(thrower):
+	if thrower == null:
+		return false
+	if !throws_consumed.has(thrower):
+		return false
+	return throws_consumed[thrower] == true
+
+func _thrower_has_target(thrower, target):
+	if thrower == null or target == null:
+		return false
+	if !throws_consumed.has(thrower):
+		return false
+	var value = throws_consumed[thrower]
+	return value is Array and value.has(target)
 
 
 
@@ -1013,7 +1082,7 @@ func apply_hitboxes_internal(playerhitboxpair:Array):
 
 
 			if can_hit:
-				if throws_consumed[px1] != null:
+				if _thrower_locked_out(px1) or _thrower_has_target(px1, px2):
 					return
 				MH_wrapped_hit(p2_hit_by, px2)
 				if p2_hit_by.throw_state:
@@ -1047,7 +1116,7 @@ func apply_hitboxes_internal(playerhitboxpair:Array):
 
 
 			if can_hit:
-				if throws_consumed[px2] != null:
+				if _thrower_locked_out(px2) or _thrower_has_target(px2, px1):
 					return
 				MH_wrapped_hit(p1_hit_by, px1)
 				if p1_hit_by.throw_state:
@@ -1130,7 +1199,7 @@ func apply_hitboxes_objects(players:Array):
 			var target = pair[1]
 			var host = hitbox.host
 			if hitbox.throw || hitbox is ThrowBox:
-				if !throws_consumed[host] || throws_consumed[host] == null:
+				if not _thrower_locked_out(host) and not _thrower_has_target(host, target):
 					MH_wrapped_hit(hitbox, target)
 					# I'm genuinely not even sure what or how to handle this
 			else:
@@ -1141,7 +1210,7 @@ func apply_hitboxes_objects(players:Array):
 			var target = pair[1]
 			var host = hitbox.host
 			if hitbox.throw || hitbox is ThrowBox:
-				if !throws_consumed.has(host) || throws_consumed[host] == null:
+				if not _thrower_locked_out(host) and not _thrower_has_target(host, target):
 					MH_wrapped_hit(hitbox, target)
 					consume_throw_by(host, target, false)
 			else:
@@ -1347,6 +1416,13 @@ func set_vanilla_game_started(toggle:bool):
 				self.game_started = false
 
 func _process(delta):
+
+	for quitter in quitters:
+		Network.main.ui_layer.silent_end_turn_for(quitter)
+		Network.sync_unlocks[quitter] = true
+		Network.turns_ready[quitter] = true
+		network_simulate_readies[quitter] = true
+
 	set_vanilla_game_started(true)
 
 	update()
@@ -1470,6 +1546,9 @@ func _physics_process(_delta):
 				target = self.forfeit_player.global_position
 			else:
 				for player in players.values():
+					if player.game_over:
+						continue
+					
 					target += player.global_position
 				target /= len(players)
 			if self.camera.global_position.distance_squared_to(target) > 10:
@@ -1607,7 +1686,7 @@ func process_opponents():
 				var queued_extra = player.queued_extra
 				if queued_extra:
 					if "opponent" in queued_extra:
-						current_opponent_indicies[index] = queued_extra["opponent"]
+						player.opponent = players[queued_extra["opponent"]]
 		else:
 			# Apparently current tick doesn't update until after objects... so I'm forced check one ahead locally.
 			var current_tick = self.current_tick+1
@@ -1618,7 +1697,7 @@ func process_opponents():
 					var queued_extra = input["extra"]
 					if queued_extra:
 						if "opponent" in queued_extra:
-							current_opponent_indicies[index] = queued_extra["opponent"]
+							players[index].opponent = players[queued_extra["opponent"]]
 
 		# I probably don't need to do this every frame, but it doesn't really hurt.
 		if not Network.multiplayer_active:
@@ -1628,15 +1707,15 @@ func process_opponents():
 		#if !is_ghost:
 
 func calc_player_order():
-    var buckets := {}
-    for id in players.keys():
-        var team = Network.get_team(id)
-        if not buckets.has(team):
-            buckets[team] = []
-        buckets[team].append(id)
-    var order := []
-    var keys := buckets.keys()
-    keys.sort()
-    for k in keys:
-        order.append(buckets[k])
-    return order
+	var buckets := {}
+	for id in players.keys():
+		var team = Network.get_team(id)
+		if not buckets.has(team):
+			buckets[team] = []
+		buckets[team].append(id)
+	var order := []
+	var keys := buckets.keys()
+	keys.sort()
+	for k in keys:
+		order.append(buckets[k])
+	return order

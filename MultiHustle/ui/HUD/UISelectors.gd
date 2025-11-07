@@ -70,10 +70,12 @@ func reinit(main):
 		var old_char = char_select.active_char_index+1;
 		var old_opp = opp_select.active_char_index+1;
 
-		if (Network.game.players[old_char-1].game_over):
+		if Network.game.players[old_char-1].game_over:
 			old_char = get_first_living_char(old_char)
-		if (Network.game.players[old_opp-1].game_over):
-			old_opp = get_first_living_char(old_opp)
+			
+		if Network.game.players.has(old_opp-1):
+			if Network.game.players[old_opp-1].game_over:
+				old_opp = get_first_living_char(old_opp)
 
 
 		if id == 1 and Network.multiplayer_active:

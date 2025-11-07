@@ -83,8 +83,18 @@ func setup_action_buttons():
 	$"%P1ActionButtons".init(game, GetRealID(1))
 	$"%P2ActionButtons".init(game, GetRealID(2))
 
+func silent_end_turn_for(player_id):
+	turn_timers[player_id].paused = true
+	game.turns_taken[player_id] = true
+
 func end_turn_for(player_id):
 	player_id = GetRealID(player_id)
+	turn_timers[player_id].paused = true
+	$"%TurnReadySound".play()
+	game.turns_taken[player_id] = true
+	if player_id == Network.player_id:
+		sync_timer(player_id)
+func end_turn_for_real(player_id):
 	turn_timers[player_id].paused = true
 	$"%TurnReadySound".play()
 	game.turns_taken[player_id] = true
@@ -114,8 +124,13 @@ func GetRealID(player_id):
 #Submits a blank action, used for locking all players in at once and locking in dead players
 func submit_dummy_action(player_id, action = "Continue", data = null, extras = null):
 	if Network.multiplayer_active and player_id == Network.player_id:
+		var buttons = $"P1ActionButtons"
+		
+		if !buttons:
+			return
+		
 		# This solution is questionable, but it should work? This is just to lock in automatically when the local player is dead
-		$"P1ActionButtons"._on_submit_pressed()
+		buttons._on_submit_pressed()
 	else:
 		.end_turn_for(player_id)
 		var fighter = game.get_player(player_id)

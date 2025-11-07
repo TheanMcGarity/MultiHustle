@@ -1,8 +1,9 @@
 extends "res://ui/ActionSelector/ActionButtons.gd"
 
-
+ 
 
 var id = null
+var restoring_state := false
 
 # Hooked for debugging purposes
 func init(ngame, pid):
@@ -93,6 +94,7 @@ func re_init(pid):
 	Network.log_to_file("Re-Init finished for action buttons! ID: " + str(id))
 
 func reset():
+	_store_ui_state()
 	visible = false
 	if is_instance_valid(fighter_extra):
 		if fighter_extra.is_connected("data_changed", self, "extra_updated"):
@@ -127,6 +129,153 @@ func reset():
 	forfeit = false
 	buttons = []
 
+func _store_ui_state():
+	if not is_instance_valid(fighter):
+		return
+	var selected_name = null
+	if current_button and current_button.action_name != "":
+		selected_name = current_button.action_name
+	elif current_action and current_action != "Continue":
+		selected_name = current_action
+	var has_selection = selected_name != null
+	fighter.ui_button_pressed = has_selection
+	fighter.ui_selected_action = selected_name
+	if current_button and current_button.data_node:
+		var stored_data = current_button.get_data()
+		fighter.ui_selected_data = _duplicate_value(stored_data)
+	else:
+		fighter.ui_selected_data = null
+	var reverse_button = $"%ReverseButton"
+	if reverse_button:
+		fighter.ui_reverse_pressed = reverse_button.pressed
+	var feint_button = $"%FeintButton"
+	if feint_button:
+		fighter.ui_feint_pressed = feint_button.pressed
+	var di_node = $"%DI"
+	if di_node and di_node.has_method("get_data"):
+		fighter.ui_di_data = di_node.get_data()
+	else:
+		fighter.ui_di_data = null
+
+func _apply_extra_controls(reverse_pressed, feint_pressed, di_data):
+	var reverse_value = reverse_pressed == true
+	var reverse_button = $"%ReverseButton"
+	if reverse_button and reverse_button.has_method("set_pressed_no_signal"):
+		reverse_button.set_pressed_no_signal(reverse_value)
+	elif reverse_button:
+		reverse_button.pressed = reverse_value
+	var feint_value = feint_pressed == true
+	var feint_button = $"%FeintButton"
+	if feint_button and feint_button.has_method("set_pressed_no_signal"):
+		feint_button.set_pressed_no_signal(feint_value)
+	elif feint_button:
+		feint_button.pressed = feint_value
+	if di_data is Dictionary:
+		var di_node = $"%DI"
+		if di_node and di_node.has_method("set_value_float"):
+			var radius = di_node.panel_radius
+			var vec = Vector2(
+				float(di_data.get("x", 0)),
+				float(di_data.get("y", 0))
+			)
+			var converted = Vector2(
+				(vec.x / 100.0) * radius,
+				(vec.y / 100.0) * radius
+			)
+			di_node.set_value_float(converted)
+
+func _duplicate_value(value):
+	if value is Dictionary:
+		return value.duplicate(true)
+	if value is Array:
+		return value.duplicate(true)
+	return value
+
+func _apply_action_data(node, data):
+	if node == null or data == null:
+		return
+	if node is ActionUIData:
+		if node.get_child_count() == 1 and !(data is Dictionary):
+			_apply_action_data(node.get_child(0), data)
+		elif data is Dictionary:
+			for child in node.get_children():
+				if data.has(child.name):
+					_apply_action_data(child, data[child.name])
+		return
+	if node.has_method("load_data"):
+		node.load_data(data)
+		return
+	if node is OptionButton:
+		if data is Dictionary and data.has("id"):
+			var idx = int(data["id"])
+			if idx >= 0 and idx < node.get_item_count():
+				node.select(idx)
+		elif data is Dictionary and data.has("name"):
+			var target = str(data["name"])
+			for i in node.get_item_count():
+				if node.get_item_text(i) == target:
+					node.select(i)
+					break
+		elif typeof(data) in [TYPE_INT, TYPE_REAL]:
+			var idx2 = int(data)
+			if idx2 >= 0 and idx2 < node.get_item_count():
+				node.select(idx2)
+		return
+	if node is CheckButton:
+		var pressed = false
+		if typeof(data) == TYPE_BOOL:
+			pressed = data
+		elif typeof(data) in [TYPE_INT, TYPE_REAL]:
+			pressed = data != 0
+		if node.has_method("set_pressed_no_signal"):
+			node.set_pressed_no_signal(pressed)
+		else:
+			node.pressed = pressed
+		return
+	if node.get("value") != null:
+		var val = data
+		if typeof(data) == TYPE_DICTIONARY and data.has("value"):
+			val = data["value"]
+		if typeof(val) in [TYPE_INT, TYPE_REAL]:
+			node.value = val
+		return
+	if node.has_method("set_height"):
+		var high = true
+		if data is Dictionary:
+			if data.has("y"):
+				high = int(data["y"]) == 0
+			elif data.has("high"):
+				high = bool(data["high"])
+		elif typeof(data) == TYPE_BOOL:
+			high = data
+		node.set_height(high)
+func _restore_fighter_selection(stored_action, reverse_pressed, feint_pressed, di_data):
+	if stored_action == null:
+		return false
+	for button in buttons:
+		if button.action_name == stored_action:
+			restoring_state = true
+			.on_action_selected(stored_action, button)
+			_apply_extra_controls(reverse_pressed, feint_pressed, di_data)
+			var stored_data = null
+			if is_instance_valid(fighter):
+				stored_data = fighter.ui_selected_data
+			if stored_data != null and button.data_node:
+				_apply_action_data(button.data_node, stored_data)
+				# Ensure fighter cache reflects what was applied
+				_store_ui_state()
+				send_ui_action(stored_action)
+			restoring_state = false
+			return true
+	if is_instance_valid(fighter):
+		fighter.ui_button_pressed = false
+		fighter.ui_selected_action = null
+		fighter.ui_reverse_pressed = false
+		fighter.ui_feint_pressed = false
+		fighter.ui_di_data = null
+		fighter.ui_selected_data = null
+	return false
+
 func _on_submit_pressed():
 	Network.log_to_file("Submit pressed for player " + str(id) + " | Current Button: " + str(current_button))
 	lock_in_pressed = true
@@ -155,15 +304,22 @@ func on_action_submitted(action, data = null, extra = null):
 	emit_signal("turn_ended")
 	$"%SelectButton".shortcut = null
 	emit_signal("action_selected", action, data, extra)
+	_store_ui_state()
 	if not SteamLobby.SPECTATING:
 		if Network.player_id == id:
 			Network.submit_action(action, data, extra)
+
+func on_action_selected(action, button):
+	.on_action_selected(action, button)
+	if restoring_state:
+		return
+	_store_ui_state()
 
 func get_extra()->Dictionary:
 	if is_instance_valid(game):
 		# I now get opponent first, just to be sure, for some reason.
 		var extra = {
-			"opponent":game.current_opponent_indicies[fighter.id]
+			"opponent":fighter.opponent.id
 		}
 		extra.merge(.get_extra())
 		return extra
@@ -191,7 +347,20 @@ func activate(refresh = true):
 		return
 
 	active = true
-	locked_in = false
+	var stored_action = null
+	var stored_reverse = false
+	var stored_feint = false
+	var stored_di = null
+	if is_instance_valid(fighter):
+		stored_action = fighter.ui_selected_action
+		stored_reverse = fighter.ui_reverse_pressed
+		stored_feint = fighter.ui_feint_pressed
+		stored_di = fighter.ui_di_data
+	var stored_locked_in = false
+	if is_instance_valid(game) and is_instance_valid(fighter) and game.turns_taken.has(fighter.id):
+		stored_locked_in = game.turns_taken[fighter.id]
+	locked_in = stored_locked_in
+	var restored_selection = false
 
 	if is_instance_valid(fighter):
 		$"%DI".set_label("DI" + " x%.1f" % float(fighter.get_di_scaling(false)))
@@ -238,7 +407,7 @@ func activate(refresh = true):
 
 	show()
 
-	if (not user_facing) or game.turns_taken[fighter.id] or fighter.game_over:
+	if (not user_facing) or stored_locked_in or fighter.game_over:
 		$"%SelectButton".disabled = true
 	else :
 		$"%SelectButton".disabled = game.spectating
@@ -253,6 +422,9 @@ func activate(refresh = true):
 		fighter_extra.show_options()
 
 	fighter_extra.reset()
+
+	if not fighter.dummy:
+		restored_selection = _restore_fighter_selection(stored_action, stored_reverse, stored_feint, stored_di)
 
 	if fighter.dummy:
 		on_action_submitted("ContinueAuto", null)
@@ -277,8 +449,9 @@ func activate(refresh = true):
 		Network.log_to_file("Returning at point B")
 		return
 	fighter.update_property_list()
-	button_pressed = false
-	send_ui_action("Continue")
+	if not restored_selection:
+		button_pressed = false
+		send_ui_action("Continue")
 	if user_facing:
 		if Network.multiplayer_active:
 			yield (get_tree().create_timer(0.25), "timeout")

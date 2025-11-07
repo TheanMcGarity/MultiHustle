@@ -2,10 +2,18 @@ extends "res://characters/BaseChar.gd"
 
 var damage_sources = []
 
+var ui_button_pressed: bool = false
+var ui_selected_action = null
+var ui_selected_data = null
+var ui_reverse_pressed: bool = false
+var ui_feint_pressed: bool = false
+var ui_di_data = null
+
 #var team_script = preload("res://MultiHustle/Teams/TeamsManager.gd")
 
 const HB_SCRIPT:Script = preload("res://mechanics/Hitbox.gd")
 const MH_HB_SCRIPT:Script = preload("res://MultiHustle/hitbox/Hitbox.gd")
+const THROW_STATE_SCRIPT:Script = preload("res://characters/states/ThrowState.gd")
 const THROWBOX_SCRIPT:Script = preload("res://characters/ThrowBox.gd") # Check if compatible?
 
 var team:int = 0
@@ -16,7 +24,9 @@ var sent_name:bool = false
 
 var set_name:bool = false
 
-
+func hide_display_name():
+	if display_name != null:
+		display_name.hide()
 
 func init_team(player):
 	pass
@@ -31,6 +41,9 @@ func init(pos = null):
 	
 	Network.teams[team][id] = Network.game.players[id]
 
+	# Doesnt work ig
+	#for throw_state in get_nodes_with_script(self, THROW_STATE_SCRIPT):
+	#	throw_state.team = team
 
 	var hitbox_nodes = get_nodes_with_script(Network.game.players[id], HB_SCRIPT)
 	for hitbox in hitbox_nodes:
@@ -69,7 +82,12 @@ func change_state(state_name, state_data = null, enter = true, exit = true):
 	update_facing() # Facing fixes?
 
 func hit_by(hitbox, force_hit = false):
+
 	Network.log("player was hit!")
+
+	if (forfeit):
+		Network.log("Forfeit Hit")
+		return
 	
 	if (hitbox == null):
 		Network.log("NULL hitbox!")
@@ -82,6 +100,7 @@ func hit_by(hitbox, force_hit = false):
 	
 	Network.log("hit_by -> self_team="+str(self_team)+", hb_team="+str(hb_team))
 	
+
 	if (self_team == 0):	
 		Network.log("FFA Hit")
 		.hit_by(hitbox, force_hit)
@@ -145,6 +164,10 @@ func init_display_name():
 
 func tick():
 	.tick()
+
+	if (forfeit):
+		hide_display_name()
+
 	if not Network.game.match_data.has("selector_char_names"):
 		if Network.multiplayer_active:
 			# Basically

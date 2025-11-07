@@ -75,9 +75,9 @@ func sync_confirm(steam_id):
 	Network.log_to_file("sync_confirm called")
 	sync_confirms[steam_id] = true
 	if is_syncing:
-		for confirmation in sync_confirms.values():
-			if !confirmation:
-				return
+		#for confirmation in sync_confirms.values():
+		#	if !confirmation:
+		#		return
 		is_syncing = false
 		sync_confirms.clear()
 		_setup_game_vs_group(OPPONENT_IDS)
@@ -227,3 +227,23 @@ func _read_P2P_Packet():
 func _send_P2P_Packet(target:int, packet_data:Dictionary)->void :
 	Network.log_to_file("Sending P2P packet! Data: " + str(packet_data), true)
 	._send_P2P_Packet(target, packet_data)
+
+func _user_left_lobby(steam_id):
+	CLIENT_TICKETS.erase(steam_id)
+	AUTH_USERS.erase(steam_id)
+	
+	Steam.endAuthSession(steam_id)
+
+	var player_id = get_key_from_value(OPPONENT_IDS, steam_id)
+	if player_id == null:
+		return
+
+	Network.rpc_("client_disconnected", [player_id])
+	pass
+
+
+func get_key_from_value(dictionary: Dictionary, target_value):
+	for key in dictionary.keys():
+		if dictionary[key] == target_value:
+			return key
+	return null # Return null if the value is not found

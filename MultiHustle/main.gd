@@ -184,7 +184,7 @@ func _start_ghost_internal(isRefresh = true):
 		player.queued_data = player_ghost_datas.get(index, null)
 		player.queued_extra = player_ghost_extras.get(index, null)
 		if player.queued_extra:
-			player.queued_extra["Opponent"] = game.get_player(index).opponent.id
+			player.queued_extra["opponent"] = game.get_player(index).opponent.id
 		player.is_ghost = true
 
 	call_deferred("fix_ghost_objects", ghost_game)

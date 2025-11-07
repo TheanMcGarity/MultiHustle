@@ -8,4 +8,8 @@ func _ready():
 	mouse_filter = MOUSE_FILTER_IGNORE 
 	set_button_mask(0)
 	set_scale(Vector2(0.001, 0.001))
-	connect("pressed", uilayer, "ContinueAll")
+	connect("pressed", self, "continue")
+
+func continue():
+	if Network.multiplayer_active:
+		uilayer.ContinueAll()

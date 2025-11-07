@@ -8,7 +8,6 @@ margin_right = 60.0
 margin_bottom = 20.0
 rect_min_size = Vector2( 60, 40 )
 theme = ExtResource( 2 )
-toggle_mode = true
 script = ExtResource( 1 )
 
 [connection signal="pressed" from="." to="." method="_on_TeamButton_pressed"]

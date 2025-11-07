@@ -19,7 +19,7 @@ const DISABLE_LOGS = false
 Quick note from CTAG: I use a lot of questionable logic to sorta ignore dead players while still sending them actions.
 Dead players could get desynced and nobody would be the wiser besides the dead player.
 If someone comes along who wants to fix this and make it properly ignore/remove/make them spectators, go ahead.
-But I'm fairly confident that this should cover for now.
+But I'm fairly confident that this xshould cover for now.
 """
 
 # This function is just so that i dont have to rename a ton of usages before this function got renamed without the usages being renamed as well.
@@ -163,13 +163,19 @@ remote func mh_opponent_sync_unlock(id):
 		sync_unlocks[id] = true
 		Network.log("Sync unlocks: " + str(sync_unlocks))
 		var done = true
-		for value in sync_unlocks.values():
-			if !value:
-				done = value
+		for key in sync_unlocks:
+			var value = sync_unlocks[key]
+
+			if game.quitters.has(key):
+				log_to_file("Ignoring sync unlock for quitter " + str(key))
+				continue
+
+			if not value:
+				done = false
 				break
 		if done:
 			for key in sync_unlocks.keys():
-				if not game.players[key].game_over:
+				if not game.players[key].game_over and not game.quitters.has(key):
 					sync_unlocks[key] = false
 			can_open_action_buttons = true
 			Network.log("Unlocking action buttons")
@@ -177,19 +183,9 @@ remote func mh_opponent_sync_unlock(id):
 			lock_sync_unlocks = true
 
 remote func player_disconnected(id):
-	if not (id in players):
-		return 
-	if Global.css_open:
-		if steam and game.players[id].hp > 0:
-			game.players[id].forfeit()
-	emit_signal("player_disconnected")
-	if is_host():
-		if players.has(id):
-			emit_signal("game_error", "Player " + players[id] + " disconnected")
-	else:
-		unregister_player(id)
-	if not steam:
-		end_game()
+	pass
+
+	
 
 # Teams
 
@@ -370,7 +366,7 @@ remotesync func accept_mh_resim(player_id:int):
 		var team = Network.get_team(Network.player_id)
 		var color = Network.get_color(team)
 		var username = game.player_names[Network.player_id]
-		var msg = ("[color=#%s]%s[/color] clicked RESYNC. %d/%d" % [color, username, resync_counter, players.size()]) 
+		var msg = ("[color=#%s]%s[/color] clicked RESYNC. %d/%d" % [color, username, resync_counter, players.size() - game.quitters.size()]) 
 
 		rpc_("send_mh_chat_message_preformatted", [msg])
 
@@ -474,3 +470,28 @@ func singleplayer_on_team_change(team:int, username:String, player:int):
 	teams[team][player] = null
 
 var sp_opp_dict = {}
+
+
+remotesync func client_disconnected(id):
+	log_to_file("CLIENT DISCONNECTED -> %d" % id)
+	var ui = main.ui_layer
+	var player = game.players[id]
+	if player:
+		player.game_over = true
+		player.hp = 0
+		player.forfeit()
+		sync_unlocks[id] = true
+		turns_ready[id] = true
+		game.quitters.append(id)
+		ui.end_turn_for_real(id)
+		player.on_action_selected("Forfeit", null, null)
+
+		resync_counter += 1
+		if resync_counter == game.players.size() and player_id == resync_request_player_id:
+			rpc_("mh_resim", [ReplayManager.frames])
+			log_to_file("Rsyncing from forfeit.")
+		
+
+
+		log_to_file("CLIENT FORFEIT -> %d" % id)
+		
